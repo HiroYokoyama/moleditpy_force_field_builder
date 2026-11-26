@@ -28,9 +28,11 @@ Repo: [https://github.com/HiroYokoyama/moleditpy_force_field_builder](https://gi
   `openmmforcefields`, when those are installed.
 - **Charges**: the force field's own scheme (Sage: OpenFF NAGL AM1-BCC charges when
   `openff-nagl` is installed, otherwise AM1-BCC from AmberTools `sqm`), Gasteiger, MMFF94,
-  GFN2-xTB (`xtb`), or charges imported from a QM result: ORCA output (RESP, CHELPG,
-  Hirshfeld or Mulliken, in that order of preference), PySCF Calculator JSON, mol2, or a plain
-  list. Charges that are **not** the force field's own scheme are marked `[not FF scheme]` in
+  GFN2-xTB (`xtb`), or charges imported from a QM result: ORCA, Gaussian, Q-Chem, Psi4 or xtb
+  output, PySCF Calculator JSON, xtb `--json` output, mol2, or a plain list. A QM output may
+  hold several charge sets (RESP, CHELPG / Merz-Kollman ESP, MBIS, CM5, Hirshfeld, NPA,
+  Loewdin, APT, Mulliken); the importer then asks which to use, with ESP-fitted charges
+  first. Charges that are **not** the force field's own scheme are marked `[not FF scheme]` in
   the molecule table and in the output.
 - **QM charges for one molecule**: a charge file may cover the whole system or a single
   molecule. One molecule's charges go to every molecule with the same atom count and element
