@@ -294,7 +294,7 @@ def test_import_asks_which_charge_set(dialog, tmp_path, monkeypatch):
         ([0.0] * n, None, "job.log: Gaussian ESP-fitted charges"),
         ([0.1] + [0.0] * (n - 1), None, "job.log: Gaussian Mulliken charges"),
     ]
-    monkeypatch.setattr(charges, "charge_sets", lambda _path: sets)
+    monkeypatch.setattr(charges, "charge_sets", lambda _path, _problems=None: sets)
     asked = []
 
     def get_item(_parent, _title, _text, labels, current, _editable):

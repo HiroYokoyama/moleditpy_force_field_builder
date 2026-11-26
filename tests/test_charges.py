@@ -353,4 +353,7 @@ def test_failed_resp_fit_keeps_the_other_sets(tmp_path, monkeypatch):
     )
     sets = _sets(tmp_path, GAUSSIAN_ESP_LOG)
     assert sets[0][2].endswith("Gaussian ESP-fitted charges")
+    problems = []
+    charges.charge_sets(str(tmp_path / "job.out"), problems)
+    assert len(problems) == 1 and "boom" in problems[0]
     assert charges.gaussian_net_charge(" Charge = -1 Multiplicity = 2\n") == -1

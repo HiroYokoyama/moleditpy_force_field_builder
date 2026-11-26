@@ -3,8 +3,9 @@
 Built in (RDKit only): Gasteiger and MMFF94. Optional, when present: the
 OpenFF NAGL graph model (``openff-nagl``), AM1-BCC through AmberTools
 ``antechamber``/``sqm``, GFN2-xTB through the ``xtb`` executable, and charges
-imported from a QM output (ORCA CHELPG/RESP/Hirshfeld/Mulliken tables, PySCF
-Calculator ``properties.json``) or a plain list.
+imported from a QM output (the charge tables of ORCA, Gaussian, Q-Chem, Psi4 and
+xtb, PySCF Calculator ``properties.json``) or a plain list. RESP charges are fitted
+by AmberTools to the ESP points of a Gaussian ``Pop=MK IOp(6/33=2)`` job.
 
 Every method returns one charge per atom of the molecule it is given, already
 shifted so that the total equals the molecule's net formal charge.
@@ -532,8 +533,11 @@ def parse_charge_file(path):
     return charge_sets(path)[0]
 
 
-def charge_sets(path):
-    """Every charge set in a file, best first: [(charges, elements, description), ...]."""
+def charge_sets(path, problems=None):
+    """Every charge set in a file, best first: [(charges, elements, description), ...].
+
+    Sets that could not be made (a failed RESP fit) are described in *problems*, a list.
+    """
     with open(path, encoding="utf-8", errors="replace") as handle:
         text = handle.read()
     name = os.path.basename(path)
@@ -559,7 +563,7 @@ def charge_sets(path):
         return sets
 
     tables = find_charge_sets(text)
-    resp = _resp_set(path, name, text, tables)
+    resp = _resp_set(path, name, text, tables, problems)
     if tables:
         return resp + [
             (
@@ -590,7 +594,7 @@ def charge_sets(path):
     return [(charges, elements, f"{name}: plain charge list")]
 
 
-def _resp_set(path, name, text, tables):
+def _resp_set(path, name, text, tables, problems=None):
     """[RESP charge set] for a Gaussian ESP job when AmberTools is installed, else []."""
     if not (has_esp_points(text) and has_resp()):
         return []
@@ -598,6 +602,8 @@ def _resp_set(path, name, text, tables):
         values = resp_from_gaussian(path, text)
     except (ChargeError, OSError, subprocess.SubprocessError) as exc:
         logger.warning("Force Field Builder: RESP fit skipped: %s", exc)
+        if problems is not None:
+            problems.append(f"The RESP fit with AmberTools failed:\n{exc}")
         return []
     # Same atoms, same order as the ESP-fitted table antechamber read.
     elements = next(

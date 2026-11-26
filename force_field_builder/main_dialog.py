@@ -644,13 +644,20 @@ class ForceFieldBuilderDialog(QDialog):
         if not path:
             return False
         mol = self._molecule()
+        problems = []
         try:
-            sets = charges.charge_sets(path)
+            sets = charges.charge_sets(path, problems)
         except (OSError, ValueError, charges.ChargeError) as exc:
             QMessageBox.warning(
                 self, "Force Field Builder", f"Could not read charges:\n{exc}"
             )
             return False
+        for problem in problems:
+            QMessageBox.warning(
+                self,
+                "Force Field Builder",
+                f"{problem[:1500]}\n\nThe other charge sets in the file are still offered.",
+            )
         chosen = self._choose_charge_set(sets)
         if chosen is None:
             return False

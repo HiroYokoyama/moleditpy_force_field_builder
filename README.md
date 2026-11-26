@@ -34,6 +34,13 @@ Repo: [https://github.com/HiroYokoyama/moleditpy_force_field_builder](https://gi
   Loewdin, APT, Mulliken); the importer then asks which to use, with ESP-fitted charges
   first. Charges that are **not** the force field's own scheme are marked `[not FF scheme]` in
   the molecule table and in the output.
+- **RESP charges with AmberTools**: import a Gaussian job run with
+  `Pop=MK IOp(6/33=2)` (the ESP points are printed) and, when AmberTools is on the PATH,
+  antechamber fits two-stage RESP charges to them (`-fi gout -c resp`). They are offered
+  first, before the unrestrained ESP fit from the same file. If the fit fails, the reason is
+  shown and the other charge sets are still offered. Checked against antechamber run by
+  hand with AmberTools 24.8; the `resp` program of the conda-forge AmberTools 26.0 build
+  crashed in our test, so use 24.x if no RESP charges appear.
 - **QM charges for one molecule**: a charge file may cover the whole system or a single
   molecule. One molecule's charges go to every molecule with the same atom count and element
   order (for example a ligand computed alone, then solvated); the other molecules use Auto.
@@ -77,6 +84,7 @@ adding a feature when present:
 | `openff-toolkit` | cross-check of the Sage assignment |
 | `openff-nagl` | Sage's own AM1-BCC (NAGL) charges |
 | AmberTools (`antechamber`, `sqm`) | AM1-BCC charges |
+| AmberTools (`antechamber`, `espgen`, `respgen`, `resp`) | RESP charges from a Gaussian ESP job |
 | `acpype` + AmberTools | GAFF / GAFF2 |
 | `openmmforcefields` + `openff-toolkit` | GAFF 2.11 via openmmforcefields |
 | `xtb` | GFN2-xTB charges |
