@@ -1,0 +1,34 @@
+; SOL: TIP3P water (Jorgensen et al., J. Chem. Phys. 79, 926 (1983))
+; charges: TIP3P water model
+
+[ moleculetype ]
+; name  nrexcl
+SOL  2
+
+[ atoms ]
+;   nr  type            resnr res   atom   cgnr   charge        mass
+     1  OW_TIP3P        1  SOL   OW         1   -0.83400000    15.99940
+     2  HW_TIP3P        1  SOL   HW1        2    0.41700000     1.00800
+     3  HW_TIP3P        1  SOL   HW2        3    0.41700000     1.00800
+
+#ifndef FLEXIBLE
+
+[ settles ]
+; OW funct doh dhh
+1  1  0.09572  0.15139
+
+#else
+
+[ bonds ]
+    1     2   1   0.09572  345000
+    1     3   1   0.09572  345000
+
+[ angles ]
+    2     1     3   1   104.52  383
+
+#endif
+
+[ exclusions ]
+1 2 3
+2 1 3
+3 1 2

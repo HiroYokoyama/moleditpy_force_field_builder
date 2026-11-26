@@ -1,0 +1,105 @@
+<ForceField>
+ <Info>
+  <Source>MoleditPy Force Field Builder 0.1.0: OpenFF Sage 2.3.0 (built-in SMIRNOFF engine)</Source>
+  <Reference>moleditpy-mdff version 1</Reference>
+ </Info>
+ <AtomTypes>
+  <Type name="MOL-1" class="MOL-1" element="C" mass="12.011"/>
+  <Type name="MOL-2" class="MOL-2" element="C" mass="12.011"/>
+  <Type name="MOL-3" class="MOL-3" element="O" mass="15.999"/>
+  <Type name="MOL-4" class="MOL-4" element="H" mass="1.008"/>
+  <Type name="MOL-5" class="MOL-5" element="H" mass="1.008"/>
+  <Type name="MOL-6" class="MOL-6" element="H" mass="1.008"/>
+  <Type name="MOL-7" class="MOL-7" element="H" mass="1.008"/>
+  <Type name="MOL-8" class="MOL-8" element="H" mass="1.008"/>
+  <Type name="MOL-9" class="MOL-9" element="H" mass="1.008"/>
+  <Type name="SOL-1" class="SOL-1" element="O" mass="15.9994"/>
+  <Type name="SOL-2" class="SOL-2" element="H" mass="1.008"/>
+  <Type name="SOL-3" class="SOL-3" element="H" mass="1.008"/>
+ </AtomTypes>
+ <Residues>
+  <Residue name="MOL">
+   <Atom name="C1" type="MOL-1" charge="0.0"/>
+   <Atom name="C2" type="MOL-2" charge="0.28"/>
+   <Atom name="O1" type="MOL-3" charge="-0.68"/>
+   <Atom name="H1" type="MOL-4" charge="0.0"/>
+   <Atom name="H2" type="MOL-5" charge="0.0"/>
+   <Atom name="H3" type="MOL-6" charge="0.0"/>
+   <Atom name="H4" type="MOL-7" charge="0.0"/>
+   <Atom name="H5" type="MOL-8" charge="0.0"/>
+   <Atom name="H6" type="MOL-9" charge="0.4"/>
+   <Bond atomName1="C1" atomName2="C2"/>
+   <Bond atomName1="C1" atomName2="H1"/>
+   <Bond atomName1="C1" atomName2="H2"/>
+   <Bond atomName1="C1" atomName2="H3"/>
+   <Bond atomName1="C2" atomName2="O1"/>
+   <Bond atomName1="C2" atomName2="H4"/>
+   <Bond atomName1="C2" atomName2="H5"/>
+   <Bond atomName1="O1" atomName2="H6"/>
+  </Residue>
+  <Residue name="SOL">
+   <Atom name="OW" type="SOL-1" charge="-0.834"/>
+   <Atom name="HW1" type="SOL-2" charge="0.417"/>
+   <Atom name="HW2" type="SOL-3" charge="0.417"/>
+   <Bond atomName1="OW" atomName2="HW1"/>
+   <Bond atomName1="OW" atomName2="HW2"/>
+  </Residue>
+ </Residues>
+ <HarmonicBondForce>
+  <Bond class1="MOL-1" class2="MOL-2" length="0.152597001379" k="191596.163035"/>
+  <Bond class1="MOL-1" class2="MOL-4" length="0.109244580911" k="284832.680497"/>
+  <Bond class1="MOL-1" class2="MOL-5" length="0.109244580911" k="284832.680497"/>
+  <Bond class1="MOL-1" class2="MOL-6" length="0.109244580911" k="284832.680497"/>
+  <Bond class1="MOL-2" class2="MOL-3" length="0.142259769474" k="164978.720782"/>
+  <Bond class1="MOL-2" class2="MOL-7" length="0.109244580911" k="284832.680497"/>
+  <Bond class1="MOL-2" class2="MOL-8" length="0.109244580911" k="284832.680497"/>
+  <Bond class1="MOL-3" class2="MOL-9" length="0.0971162541825" k="477521.527248"/>
+  <Bond class1="SOL-1" class2="SOL-2" length="0.09572" k="345000"/>
+  <Bond class1="SOL-1" class2="SOL-3" length="0.09572" k="345000"/>
+ </HarmonicBondForce>
+ <HarmonicAngleForce>
+  <Angle class1="MOL-1" class2="MOL-2" class3="MOL-3" angle="1.91376322277" k="417.111963191"/>
+  <Angle class1="MOL-1" class2="MOL-2" class3="MOL-7" angle="1.91376322277" k="417.111963191"/>
+  <Angle class1="MOL-1" class2="MOL-2" class3="MOL-8" angle="1.91376322277" k="417.111963191"/>
+  <Angle class1="MOL-2" class2="MOL-1" class3="MOL-4" angle="1.91376322277" k="417.111963191"/>
+  <Angle class1="MOL-2" class2="MOL-1" class3="MOL-5" angle="1.91376322277" k="417.111963191"/>
+  <Angle class1="MOL-2" class2="MOL-1" class3="MOL-6" angle="1.91376322277" k="417.111963191"/>
+  <Angle class1="MOL-2" class2="MOL-3" class3="MOL-9" angle="1.89678216296" k="871.662635582"/>
+  <Angle class1="MOL-3" class2="MOL-2" class3="MOL-7" angle="1.91376322277" k="417.111963191"/>
+  <Angle class1="MOL-3" class2="MOL-2" class3="MOL-8" angle="1.91376322277" k="417.111963191"/>
+  <Angle class1="MOL-4" class2="MOL-1" class3="MOL-5" angle="1.88504287761" k="164.983109555"/>
+  <Angle class1="MOL-4" class2="MOL-1" class3="MOL-6" angle="1.88504287761" k="164.983109555"/>
+  <Angle class1="MOL-5" class2="MOL-1" class3="MOL-6" angle="1.88504287761" k="164.983109555"/>
+  <Angle class1="MOL-7" class2="MOL-2" class3="MOL-8" angle="1.88504287761" k="164.983109555"/>
+  <Angle class1="SOL-2" class2="SOL-1" class3="SOL-3" angle="1.82421813418" k="383"/>
+ </HarmonicAngleForce>
+ <PeriodicTorsionForce ordering="smirnoff">
+  <Proper class1="MOL-1" class2="MOL-2" class3="MOL-3" class4="MOL-9" periodicity1="3" phase1="0.0" k1="1.68086750503" periodicity2="1" phase2="0.0" k2="1.00629866442"/>
+  <Proper class1="MOL-3" class2="MOL-2" class3="MOL-1" class4="MOL-4" periodicity1="3" phase1="0.0" k1="0.421406254743" periodicity2="1" phase2="0.0" k2="1.81801840882"/>
+  <Proper class1="MOL-3" class2="MOL-2" class3="MOL-1" class4="MOL-5" periodicity1="3" phase1="0.0" k1="0.421406254743" periodicity2="1" phase2="0.0" k2="1.81801840882"/>
+  <Proper class1="MOL-3" class2="MOL-2" class3="MOL-1" class4="MOL-6" periodicity1="3" phase1="0.0" k1="0.421406254743" periodicity2="1" phase2="0.0" k2="1.81801840882"/>
+  <Proper class1="MOL-4" class2="MOL-1" class3="MOL-2" class4="MOL-7" periodicity1="3" phase1="0.0" k1="1.00085243555"/>
+  <Proper class1="MOL-4" class2="MOL-1" class3="MOL-2" class4="MOL-8" periodicity1="3" phase1="0.0" k1="1.00085243555"/>
+  <Proper class1="MOL-5" class2="MOL-1" class3="MOL-2" class4="MOL-7" periodicity1="3" phase1="0.0" k1="1.00085243555"/>
+  <Proper class1="MOL-5" class2="MOL-1" class3="MOL-2" class4="MOL-8" periodicity1="3" phase1="0.0" k1="1.00085243555"/>
+  <Proper class1="MOL-6" class2="MOL-1" class3="MOL-2" class4="MOL-7" periodicity1="3" phase1="0.0" k1="1.00085243555"/>
+  <Proper class1="MOL-6" class2="MOL-1" class3="MOL-2" class4="MOL-8" periodicity1="3" phase1="0.0" k1="1.00085243555"/>
+  <Proper class1="MOL-7" class2="MOL-2" class3="MOL-3" class4="MOL-9" periodicity1="3" phase1="0.0" k1="1.77255873179"/>
+  <Proper class1="MOL-8" class2="MOL-2" class3="MOL-3" class4="MOL-9" periodicity1="3" phase1="0.0" k1="1.77255873179"/>
+ </PeriodicTorsionForce>
+ <NonbondedForce coulomb14scale="0.833333" lj14scale="0.5">
+  <UseAttributeFromResidue name="charge"/>
+  <Atom class="MOL-1" sigma="0.338797107343" epsilon="0.504464427851"/>
+  <Atom class="MOL-2" sigma="0.338797107343" epsilon="0.504464427851"/>
+  <Atom class="MOL-3" sigma="0.302372129431" epsilon="0.566349857345"/>
+  <Atom class="MOL-4" sigma="0.266393410184" epsilon="0.0559245203812"/>
+  <Atom class="MOL-5" sigma="0.266393410184" epsilon="0.0559245203812"/>
+  <Atom class="MOL-6" sigma="0.266393410184" epsilon="0.0559245203812"/>
+  <Atom class="MOL-7" sigma="0.255860376723" epsilon="0.0791611719943"/>
+  <Atom class="MOL-8" sigma="0.255860376723" epsilon="0.0791611719943"/>
+  <Atom class="MOL-9" sigma="0.053309641339" epsilon="5.1549336404e-05"/>
+  <Atom class="SOL-1" sigma="0.315061" epsilon="0.636386"/>
+  <Atom class="SOL-2" sigma="1" epsilon="0.0"/>
+  <Atom class="SOL-3" sigma="1" epsilon="0.0"/>
+ </NonbondedForce>
+</ForceField>

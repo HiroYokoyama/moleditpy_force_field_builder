@@ -1,0 +1,83 @@
+{
+ "format": "moleditpy-mdff",
+ "version": 1,
+ "source": "MoleditPy Force Field Builder 0.1.0: OpenFF Sage 2.3.0 (built-in SMIRNOFF engine)",
+ "combination_rule": 2,
+ "fudge_lj": 0.5,
+ "fudge_qq": 0.833333,
+ "molecule_types": [
+  {
+   "name": "SOL",
+   "atoms": [
+    {
+     "name": "OW",
+     "element": "O",
+     "type": "OW_TIP3P",
+     "charge": -0.834,
+     "mass": 15.9994,
+     "sigma": 0.315061,
+     "epsilon": 0.636386
+    },
+    {
+     "name": "HW1",
+     "element": "H",
+     "type": "HW_TIP3P",
+     "charge": 0.417,
+     "mass": 1.008,
+     "sigma": 0.0,
+     "epsilon": 0.0
+    },
+    {
+     "name": "HW2",
+     "element": "H",
+     "type": "HW_TIP3P",
+     "charge": 0.417,
+     "mass": 1.008,
+     "sigma": 0.0,
+     "epsilon": 0.0
+    }
+   ],
+   "bonds": [
+    {
+     "i": 0,
+     "j": 1,
+     "r0": 0.09572,
+     "k": 345000.0
+    },
+    {
+     "i": 0,
+     "j": 2,
+     "r0": 0.09572,
+     "k": 345000.0
+    }
+   ],
+   "angles": [
+    {
+     "i": 1,
+     "j": 0,
+     "k_atom": 2,
+     "theta0": 104.52,
+     "k": 383.0
+    }
+   ],
+   "torsions": [],
+   "exclusions_nrexcl": 2,
+   "settles": {
+    "i": 0,
+    "doh": 0.09572,
+    "dhh": 0.15139
+   },
+   "charge_method": "TIP3P water model",
+   "charges_from_force_field": true,
+   "force_field": "TIP3P water (Jorgensen et al., J. Chem. Phys. 79, 926 (1983))",
+   "smiles": "O"
+  }
+ ],
+ "system": [
+  {
+   "type": "SOL",
+   "count": 3,
+   "atom_offset": 0
+  }
+ ]
+}

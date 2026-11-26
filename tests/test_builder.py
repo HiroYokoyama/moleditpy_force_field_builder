@@ -220,3 +220,12 @@ def test_validate_reports_problems():
     assert any("format" in e for e in errors)
     with pytest.raises(ValueError):
         mdff.loads(json.dumps(bad))
+
+
+def test_shipped_examples_are_valid():
+    folder = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "examples")
+    names = [n for n in os.listdir(folder) if n.endswith(".mdff.json")]
+    assert len(names) >= 3
+    for name in names:
+        with open(os.path.join(folder, name), encoding="utf-8") as handle:
+            assert mdff.validate(json.load(handle)) == [], name

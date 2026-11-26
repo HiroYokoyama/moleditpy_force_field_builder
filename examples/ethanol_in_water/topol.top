@@ -1,0 +1,27 @@
+; MoleditPy Force Field Builder 0.1.0: OpenFF Sage 2.3.0 (built-in SMIRNOFF engine)
+; written from a moleditpy-mdff description
+
+[ defaults ]
+; nbfunc  comb-rule  gen-pairs  fudgeLJ  fudgeQQ
+  1        2          yes        0.5      0.833333
+
+[ atomtypes ]
+; name             at.num   mass       charge  ptype  sigma (nm)     epsilon (kJ/mol)
+  C_n16                6    12.01100  0.0000  A      0.3387971073   0.5044644279
+  O_n19                8    15.99900  0.0000  A      0.3023721294   0.5663498573
+  H_n2                 1     1.00800  0.0000  A      0.2663934102   0.05592452038
+  H_n3                 1     1.00800  0.0000  A      0.2558603767   0.07916117199
+  H_n12                1     1.00800  0.0000  A      0.05330964134  5.15493364e-05
+  OW_TIP3P             8    15.99940  0.0000  A      0.315061       0.636386
+  HW_TIP3P             1     1.00800  0.0000  A      0.0            0.0
+
+#include "topol_MOL.itp"
+#include "topol_SOL.itp"
+
+[ system ]
+MoleditPy Force Field Builder 0.1.0: OpenFF Sage 2.3.0 (built-in SMIRNOFF engine)
+
+[ molecules ]
+; name      count
+MOL        1
+SOL        3
