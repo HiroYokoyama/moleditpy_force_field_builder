@@ -18,13 +18,13 @@ MAX_LABELS = 3000
 
 
 def charge_colour(q, limit=1.0):
-    """Blue (negative) - white - red (positive) hex colour for charge *q*."""
+    """Red (negative) - white - blue (positive) hex colour, as in ESP maps."""
     limit = limit if limit > 0 else 1.0
     t = max(-1.0, min(1.0, q / limit))
     if t >= 0:
-        r, g, b = 255, round(255 * (1 - t)), round(255 * (1 - t))
+        r, g, b = round(255 * (1 - t)), round(255 * (1 - t)), 255
     else:
-        r, g, b = round(255 * (1 + t)), round(255 * (1 + t)), 255
+        r, g, b = 255, round(255 * (1 + t)), round(255 * (1 + t))
     return f"#{r:02x}{g:02x}{b:02x}"
 
 

@@ -128,3 +128,12 @@ def test_bundled_force_field_and_license_present():
         os.path.join(data, "LICENSE-openff-forcefields.txt"), encoding="utf-8"
     ) as handle:
         assert "Attribution 4.0 International" in handle.read()
+
+
+def test_charge_colours_follow_the_esp_convention():
+    from force_field_builder import display
+
+    assert display.charge_colour(-1.0) == "#ff0000"
+    assert display.charge_colour(1.0) == "#0000ff"
+    assert display.charge_colour(0.0) == "#ffffff"
+    assert display.charge_colours([-0.5, 0.25])[0] == "#ff0000"
