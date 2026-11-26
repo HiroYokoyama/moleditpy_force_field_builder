@@ -418,11 +418,12 @@ CHARGE_SECTIONS = (
     _section(
         "Q-Chem", "Merz-Kollman ESP", r"^\s*Merz-Kollman ESP Net Atomic Charges\s*$"
     ),
-    # Pop=CHelpG / MK / HLY: "Charges from ESP fit, RMS= ..." then "ESP charges:".
+    # Pop=CHelpG / MK / HLY: "Charges from ESP fit, RMS= ..." then "ESP charges:",
+    # followed by a "summed into heavy atoms" table that must not be taken.
     _section(
         "Gaussian",
         "ESP-fitted",
-        r"^\s*(?:ESP charges\b.*:|Charges from ESP fit\b.*)\s*$",
+        r"^\s*(?:ESP charges\b(?!.*summed).*:|Charges from ESP fit\b.*)\s*$",
     ),
     _section(
         "Psi4", "MBIS", r"^\s*MBIS Charges(?:: \(a\.u\.\)| \[a\.u\.\]:)", pick=LAST

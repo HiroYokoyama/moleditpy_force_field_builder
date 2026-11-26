@@ -132,7 +132,8 @@ def test_average_equivalent_keeps_total_and_groups_equivalent_atoms():
     assert charges.average_equivalent(mol, out)[1] == 0
 
 
-# Layouts below follow each program's own output (headers cross-checked with cclib's
+# Layouts below follow each program's own output (the Gaussian ESP block as printed
+# by Gaussian 16 for Pop=MK; headers cross-checked with cclib's
 # parsers and, for xtb, its property printer). Water: O, H, H.
 GAUSSIAN_LOG = """
  Entering Gaussian System, Link 0=g16
@@ -153,11 +154,16 @@ GAUSSIAN_LOG = """
      3  H    0.172007   0.000000   0.000000  -0.123455   0.081733   0.334090
        Tot   0.000000   0.000000   0.000000   0.000000  -0.054865   0.000000
  Charges from ESP fit, RMS=   0.00133 RRMS=   0.10427:
- Charge=   0.00000 Dipole=    0.0000    0.0000   -2.4034 Tot=    2.4034
+ ESP charges:
                1
      1  O   -0.834020
      2  H    0.417010
      3  H    0.417010
+ Sum of ESP charges =   0.00000
+ ESP charges with hydrogens summed into heavy atoms:
+               1
+     1  O    0.000000
+ Charge=   0.00000 Dipole=    0.0000    0.0000   -2.4034 Tot=    2.4034
  -----------------------------------------------------------------
 
  Summary of Natural Population Analysis:
