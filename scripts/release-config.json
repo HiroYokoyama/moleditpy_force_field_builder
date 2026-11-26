@@ -1,0 +1,19 @@
+{
+  "source": "force_field_builder/__init__.py",
+  "title": "Force Field Builder",
+  "package": "force_field_builder",
+  "archive": "force_field_builder_{version}.zip",
+  "assets": [
+    "force_field_builder_{version}.zip"
+  ],
+  "include": [
+    "README.md",
+    "LICENSE",
+    "COPYING",
+    "LICENSING.md"
+  ],
+  "exclude": [
+    "*/__pycache__/*",
+    "*/.git/*"
+  ]
+}
