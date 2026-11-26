@@ -119,3 +119,14 @@ def test_mol2_round_trip(tmp_path):
     assert charges.read_mol2_charges(str(path)) == pytest.approx(values)
     text = path.read_text(encoding="utf-8")
     assert " ar" in text  # aromatic bonds keep their mol2 type
+
+
+def test_average_equivalent_keeps_total_and_groups_equivalent_atoms():
+    mol = mol3d("CC(=O)[O-]")  # acetate: both oxygens and the three H are equivalent
+    values = [-0.3, 0.7, -0.7, -0.9, 0.05, 0.1, 0.05]
+    out, changed = charges.average_equivalent(mol, values)
+    assert sum(out) == pytest.approx(sum(values))
+    assert out[2] == pytest.approx(out[3]) == pytest.approx(-0.8)
+    assert out[4] == pytest.approx(out[5]) == pytest.approx(out[6])
+    assert changed == 5
+    assert charges.average_equivalent(mol, out)[1] == 0

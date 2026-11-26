@@ -127,7 +127,11 @@ def test_charge_scheme_is_flagged():
 def test_imported_charges_are_used():
     mol = mol3d("CO")
     values = [0.1 * (i - 2) for i in range(mol.GetNumAtoms())]
-    res = builder.build(mol, {"charge_method": "imported"}, imported_charges=values)
+    res = builder.build(
+        mol,
+        {"charge_method": "imported", "average_equivalent": False},
+        imported_charges=values,
+    )
     got = [a["charge"] for a in res.mdff["molecule_types"][0]["atoms"]]
     shift = -sum(values) / len(values)
     assert got == pytest.approx([v + shift for v in values])
@@ -254,3 +258,75 @@ def test_molecule_order_and_reorder():
     pos_old = mol.GetConformer().GetPositions()
     pos_new = out.GetConformer().GetPositions()
     assert (pos_new == pos_old[order]).all()
+
+
+def test_imported_charges_are_averaged_over_equivalent_atoms():
+    mol = mol3d("CO")  # C O H H H H: the three methyl hydrogens are equivalent
+    values = [0.1, -0.6, 0.0, 0.05, 0.1, 0.35]
+    res = builder.build(mol, {"charge_method": "imported"}, imported_charges=values)
+    got = [a["charge"] for a in res.mdff["molecule_types"][0]["atoms"]]
+    assert got[2] == pytest.approx(got[3]) == pytest.approx(got[4])
+    assert got[2] == pytest.approx(0.05)
+    assert got[5] == pytest.approx(0.35)
+    assert sum(got) == pytest.approx(0.0)
+    info = res.types[0]
+    assert "averaged" in info.charge_method
+    assert any("2 symmetry-equivalent" in w for w in info.warnings)
+
+
+def test_charges_of_one_molecule_apply_to_every_copy():
+    system = _mixed()  # ethanol, 3 waters, Na+, Cl-, ethanol in another conformer
+    ethanol = mol3d("CCO")
+    values = [0.1 * (i % 3) - 0.1 for i in range(ethanol.GetNumAtoms())]
+    elements = [a.GetSymbol() for a in ethanol.GetAtoms()]
+    assert builder.imported_matches(system, values, elements) == ("molecule", 2)
+    res = builder.build(
+        system,
+        {"charge_method": "imported", "average_equivalent": False},
+        imported_charges=values,
+        imported_elements=elements,
+    )
+    assert mdff.validate(res.mdff) == []
+    mol_type = res.mdff["molecule_types"][0]
+    shift = -sum(values) / len(values)
+    assert [a["charge"] for a in mol_type["atoms"]] == pytest.approx(
+        [v + shift for v in values]
+    )
+    assert res.type_info("MOL").count == 2
+    assert res.type_info("MOL").charge_method.startswith("Imported")
+    # Ions keep their library charges, water its model.
+    na = res.mdff["molecule_types"][[t.name for t in res.types].index("NA")]
+    assert na["atoms"][0]["charge"] == pytest.approx(1.0)
+    n = ethanol.GetNumAtoms()
+    assert res.atom_charges[20 : 20 + n] == pytest.approx(res.atom_charges[:n])
+
+
+def test_other_molecules_fall_back_to_auto():
+    system = combine(mol3d("CCO"), shifted(mol3d("CC(=O)O"), 8))
+    acid = mol3d("CC(=O)O")
+    values = [0.0] * acid.GetNumAtoms()
+    values[0] = 0.2
+    values[1] = -0.2
+    res = builder.build(
+        system,
+        {"charge_method": "imported"},
+        imported_charges=values,
+        imported_elements=[a.GetSymbol() for a in acid.GetAtoms()],
+    )
+    first, second = res.types
+    assert first.charge_method != second.charge_method
+    assert any("another molecule" in w for w in first.warnings)
+    assert "Imported" in second.charge_method
+
+
+def test_charges_that_fit_nothing_are_rejected():
+    system = _mixed()
+    assert builder.imported_matches(system, [0.0] * 5) == (None, 0)
+    assert builder.imported_matches(system, [0.0] * 3) == (None, 0)  # water only
+    with pytest.raises(builder.BuildError, match="fit neither"):
+        builder.build(system, {"charge_method": "imported"}, imported_charges=[0.0] * 5)
+    ethanol = mol3d("CCO")
+    wrong_order = [a.GetSymbol() for a in ethanol.GetAtoms()][::-1]
+    assert builder.imported_matches(
+        system, [0.0] * ethanol.GetNumAtoms(), wrong_order
+    ) == (None, 0)

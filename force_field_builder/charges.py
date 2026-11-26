@@ -54,14 +54,24 @@ def normalise(charges, target):
 def average_equivalent(mol, values):
     """Average charges over symmetry-equivalent atoms.
 
-    Atoms are equivalent when RDKit gives them the same canonical rank without tie
-    breaking (for example the three hydrogens of a methyl group or the two oxygens
-    of a carboxylate). Returns (charges, number of atoms whose charge changed).
-    The total charge is unchanged.
+    Atoms are equivalent when they are equivalent in the bond graph with explicit
+    hydrogens, ignoring bond orders and formal charges, so resonance forms count as
+    one (the three hydrogens of a methyl group, the two oxygens of a carboxylate or
+    of a nitro group). Returns (charges, number of atoms whose charge changed). The
+    total charge is unchanged.
     """
     from rdkit import Chem
 
-    work = Chem.Mol(mol)
+    work = Chem.RWMol(mol)
+    for atom in work.GetAtoms():
+        atom.SetFormalCharge(0)
+        atom.SetIsAromatic(False)
+        atom.SetIsotope(0)
+        atom.SetNoImplicit(True)
+        atom.SetNumExplicitHs(0)
+    for bond in work.GetBonds():
+        bond.SetBondType(Chem.BondType.SINGLE)
+        bond.SetIsAromatic(False)
     work.UpdatePropertyCache(strict=False)
     Chem.FastFindRings(work)
     ranks = list(Chem.CanonicalRankAtoms(work, breakTies=False))

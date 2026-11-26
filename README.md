@@ -32,6 +32,12 @@ Repo: [https://github.com/HiroYokoyama/moleditpy_force_field_builder](https://gi
   Hirshfeld or Mulliken, in that order of preference), PySCF Calculator JSON, mol2, or a plain
   list. Charges that are **not** the force field's own scheme are marked `[not FF scheme]` in
   the molecule table and in the output.
+- **QM charges for one molecule**: a charge file may cover the whole system or a single
+  molecule. One molecule's charges go to every molecule with the same atom count and element
+  order (for example a ligand computed alone, then solvated); the other molecules use Auto.
+- **Equivalent atoms averaged**: imported and xTB charges are averaged over
+  symmetry-equivalent atoms (methyl hydrogens, carboxylate or nitro oxygens; resonance forms
+  count as one), keeping the total charge. It can be switched off.
 - **Water and ions from tables**: TIP3P, SPC/E and OPC3 water; Sage library charges and
   Lennard-Jones parameters for monatomic ions.
 - **Identical molecules parameterised once**: the system is split into molecules, identical

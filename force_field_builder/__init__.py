@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 PLUGIN_NAME = "Force Field Builder"
-PLUGIN_VERSION = "0.1.1"
+PLUGIN_VERSION = "0.1.2"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = (
     "Builds MD force-field parameters (OpenFF Sage via RDKit, optional GAFF) and charges "

@@ -268,3 +268,19 @@ def test_interleaved_molecules_kept_when_declined(dialog, monkeypatch):
     result = dialog.run_build()
     assert len(result.types) == 1
     assert any("interleaved" in w for w in result.warnings)
+
+
+def test_import_charges_of_one_molecule(dialog, tmp_path):
+    ethanol = mol3d("CCO")
+    rows = [
+        f"{a.GetSymbol()} {0.1 if a.GetSymbol() == 'C' else -0.1}"
+        for a in ethanol.GetAtoms()
+    ]
+    path = tmp_path / "ethanol.chg"
+    path.write_text("\n".join(rows), encoding="utf-8")
+    assert dialog.import_charges(str(path))
+    assert "applied to 1 matching copy" in dialog.import_label.text()
+    result = dialog.run_build()
+    assert result is not None
+    assert result.types[0].charge_method.startswith("Imported")
+    assert result.types[1].kind == "water"
