@@ -442,13 +442,13 @@ def lammps_data(data, positions, cell=None, padding=10.0):
             )
         for b in mt.get("bonds", []):
             key = (
-                round(b["k"] / KJ_PER_KCAL / 100.0 / 2.0, 6),
-                round(b["r0"] * 10.0, 6),
+                round(b["k"] / KJ_PER_KCAL / 100.0 / 2.0, 9),
+                round(b["r0"] * 10.0, 9),
             )
             bond_type_ids.setdefault(key, len(bond_type_ids) + 1)
             bonds.append((bond_type_ids[key], first + b["i"] + 1, first + b["j"] + 1))
         for a in mt.get("angles", []):
-            key = (round(a["k"] / KJ_PER_KCAL / 2.0, 6), round(a["theta0"], 6))
+            key = (round(a["k"] / KJ_PER_KCAL / 2.0, 9), round(a["theta0"], 9))
             angle_type_ids.setdefault(key, len(angle_type_ids) + 1)
             angles.append(
                 (

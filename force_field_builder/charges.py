@@ -359,6 +359,15 @@ def parse_charge_file(path):
 
 def compute(method, mol, imported=None):
     """Charges for *mol* by *method* (not normalised). *imported* is a list for 'imported'."""
+    try:
+        return _compute(method, mol, imported)
+    except ChargeError:
+        raise
+    except Exception as exc:
+        raise ChargeError(f"{METHOD_LABELS.get(method, method)} failed: {exc}") from exc
+
+
+def _compute(method, mol, imported=None):
     if method == "gasteiger":
         return gasteiger(mol)
     if method == "mmff94":

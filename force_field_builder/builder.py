@@ -147,7 +147,10 @@ def _sage_type(block_mol, name, atom_names, options, imported, info):
             "Filled from UFF (check these): " + "; ".join(assignment.fallbacks)
         )
 
-    if assignment.library_charges is not None and options["charge_method"] in ("auto",):
+    if (
+        assignment.library_charges is not None
+        and options["charge_method"] != "imported"
+    ):
         values = assignment.library_charges
         info.charge_method = "Sage library charges"
         info.charges_from_force_field = True

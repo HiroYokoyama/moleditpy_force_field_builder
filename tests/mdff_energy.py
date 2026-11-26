@@ -48,8 +48,12 @@ def energy(data, coords_nm, nrexcl_from_type=False):
                 theta = math.acos(max(-1.0, min(1.0, cos)))
                 out["angle"] += 0.5 * a["k"] * (theta - math.radians(a["theta0"])) ** 2
             for t in mt.get("torsions", []):
-                phi = _dihedral(*(coords[first + t[key]] for key in ("i", "j", "k_atom", "l")))
-                out["torsion"] += t["k"] * (1 + math.cos(t["periodicity"] * phi - math.radians(t["phase"])))
+                phi = _dihedral(
+                    *(coords[first + t[key]] for key in ("i", "j", "k_atom", "l"))
+                )
+                out["torsion"] += t["k"] * (
+                    1 + math.cos(t["periodicity"] * phi - math.radians(t["phase"]))
+                )
             # exclusions / 1-4 from the bond graph
             adj = {i: set() for i in range(n)}
             for b in mt.get("bonds", []):
@@ -64,7 +68,11 @@ def energy(data, coords_nm, nrexcl_from_type=False):
                         dist.setdefault(m, depth)
                 for j, d in dist.items():
                     if j > i and d > 0:
-                        scale[(first + i, first + j)] = (0.0, 0.0) if d < 3 else (data["fudge_lj"], data["fudge_qq"])
+                        scale[(first + i, first + j)] = (
+                            (0.0, 0.0)
+                            if d < 3
+                            else (data["fudge_lj"], data["fudge_qq"])
+                        )
             if mt.get("settles"):
                 for i in range(n):
                     for j in range(i + 1, n):
