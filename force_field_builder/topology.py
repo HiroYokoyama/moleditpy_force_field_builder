@@ -89,10 +89,12 @@ def extract_block(mol, start, end):
     return out
 
 
-def implicit_hydrogen_count(mol):
+def implicit_hydrogen_count(mol, skip=()):
     """Total implicit hydrogens of the host molecule (they need to be atoms)."""
     total = 0
     for atom in mol.GetAtoms():
+        if atom.GetIdx() in skip:
+            continue
         try:
             total += atom.GetNumImplicitHs()
         except Exception:  # noqa: BLE001

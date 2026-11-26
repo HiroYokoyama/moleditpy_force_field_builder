@@ -1,0 +1,11 @@
+amber_ff14sb.json is converted by tools/build_ff14sb.py from the Amber ff14SB protein
+force field files distributed with AmberTools (dat/leap/parm/parm10.dat,
+dat/leap/parm/frcmod.ff14SB, dat/leap/lib/amino12.lib, aminont12.lib, aminoct12.lib,
+as loaded by dat/leap/cmd/leaprc.protein.ff14SB).
+
+The AmberTools LICENSE states: "The force field parameter files in the "../dat/leap"
+subdirectory have been placed in the public domain by their authors."
+
+Please cite: J. A. Maier, C. Martinez, K. Kasavajhala, L. Wickstrom, K. E. Hauser,
+C. Simmerling, "ff14SB: Improving the Accuracy of Protein Side Chain and Backbone
+Parameters from ff99SB", J. Chem. Theory Comput. 11, 3696-3713 (2015).

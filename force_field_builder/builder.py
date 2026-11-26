@@ -8,8 +8,8 @@ per-atom display data and warnings.
 
 from __future__ import annotations
 
+from . import amber, external, smirnoff, topology, water
 from . import charges as charge_mod
-from . import external, smirnoff, topology, water
 
 FORMAT_NAME = "moleditpy-mdff"
 FORMAT_VERSION = 1
@@ -271,7 +271,25 @@ def _external_type(block_mol, name, atom_names, options, imported, info):
     return mtype
 
 
+def _protein_type(block_mol, name, atom_names, options, info):
+    mtype, templates = amber.molecule_type(block_mol, name, atom_names)
+    info.kind = "protein"
+    info.charge_method = "ff14SB residue charges"
+    info.charges_from_force_field = True
+    info.residues = templates
+    if options["charge_method"] == "imported":
+        info.warnings.append(
+            "Imported charges are not used for proteins; ff14SB residue charges are."
+        )
+    info.warnings.append(
+        f"{len(templates)} residues parameterised with {amber.FORCE_FIELD_LABEL}."
+    )
+    return mtype
+
+
 def _ion_or_molecule_type(block_mol, name, atom_names, options, imported, info):
+    if block_mol.GetNumAtoms() > 1 and amber.is_protein(block_mol):
+        return _protein_type(block_mol, name, atom_names, options, info)
     if options["force_field"] == "sage":
         return _sage_type(block_mol, name, atom_names, options, imported, info)
     if block_mol.GetNumAtoms() == 1:
@@ -359,7 +377,9 @@ def build(
 
     host = Chem.Mol(mol)
     host.UpdatePropertyCache(strict=False)
-    if topology.implicit_hydrogen_count(host):
+    # Standard protein residues get their hydrogens from ff14SB templates, which check
+    # them; RDKit's count is meaningless there (PDB files carry no bond orders).
+    if topology.implicit_hydrogen_count(host, skip=amber.protein_atoms(host)):
         raise BuildError(
             "The molecule has implicit hydrogens. Convert it to 3D first so that "
             "every hydrogen is an explicit atom."
@@ -435,6 +455,8 @@ def build(
                     base_name = topology.residue_name(host, start) or "MOL"
                     if base_name in ("HOH", "WAT", "SOL") or len(base_name) > 8:
                         base_name = "MOL"
+                    if end - start > 1 and amber.is_protein(block_mol):
+                        base_name = "PROTEIN"
                 name = _unique_name(base_name, used_names)
                 info = TypeInfo(name, kind)
                 info.smiles = smiles
@@ -462,13 +484,15 @@ def build(
                     smirnoff.SmirnoffError,
                     charge_mod.ChargeError,
                     external.ExternalError,
+                    amber.AmberError,
                 ) as exc:
                     raise BuildError(
                         f"{name} (atoms {start + 1}-{end}): {exc}"
                     ) from exc
                 by_smiles.setdefault(smiles, (name, block_mol))
 
-        if kind != "water":
+        if kind != "water" and info.kind != "protein":
+            # (ff14SB residue charges are exact; PDB formal charges often are not set.)
             target = charge_mod.formal_charge(block_mol)
             values, residual = charge_mod.normalise(
                 [a["charge"] for a in mtype["atoms"]], target
@@ -518,7 +542,12 @@ def build(
     result.mdff = {
         "format": FORMAT_NAME,
         "version": FORMAT_VERSION,
-        "source": f"MoleditPy Force Field Builder {version}: {FORCE_FIELDS[opts['force_field']]}",
+        "source": f"MoleditPy Force Field Builder {version}: {FORCE_FIELDS[opts['force_field']]}"
+        + (
+            f"; {amber.FORCE_FIELD_LABEL}"
+            if any(info.kind == "protein" for info in result.types)
+            else ""
+        ),
         "combination_rule": 2,
         "fudge_lj": ff.scale14_lj,
         "fudge_qq": round(ff.scale14_qq, 6),
