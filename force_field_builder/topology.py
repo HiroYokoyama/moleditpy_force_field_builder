@@ -200,3 +200,33 @@ def system_entries(block_types):
     for entry in entries:
         del entry["_next"]
     return entries
+
+
+def molecule_order(mol):
+    """Atom order that makes every covalent molecule contiguous, or None if it already is.
+
+    Molecules keep the order of their first atom; atoms keep their relative
+    order inside each molecule. MoleditPy's 2D->3D conversion appends all
+    hydrogens after all heavy atoms, which interleaves separate molecules.
+    """
+    from rdkit import Chem
+
+    frags = sorted(Chem.GetMolFrags(mol, sanitizeFrags=False), key=min)
+    order = [i for frag in frags for i in sorted(frag)]
+    if order == list(range(mol.GetNumAtoms())):
+        return None
+    return order
+
+
+def reorder_by_molecule(mol):
+    """A copy of *mol* with each molecule's atoms contiguous (props and conformers kept)."""
+    from rdkit import Chem
+
+    order = molecule_order(mol)
+    if order is None:
+        return Chem.Mol(mol)
+    out = Chem.RenumberAtoms(mol, order)
+    for name in mol.GetPropNames():
+        if not out.HasProp(name):
+            out.SetProp(name, mol.GetProp(name))
+    return out

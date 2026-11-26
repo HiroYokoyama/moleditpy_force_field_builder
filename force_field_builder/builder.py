@@ -308,7 +308,17 @@ def build(mol, options=None, imported_charges=None, version="0.1.0"):
     types = {}  # name -> mdff type
     block_types = []
 
+    merged = 0
     for start, end in topology.fragment_blocks(host):
+        if (
+            len(
+                Chem.GetMolFrags(
+                    topology.extract_block(host, start, end), sanitizeFrags=False
+                )
+            )
+            > 1
+        ):
+            merged += 1
         sig = topology.block_signature(host, start, end)
         if sig in by_signature:
             name = by_signature[sig]
@@ -433,6 +443,12 @@ def build(mol, options=None, imported_charges=None, version="0.1.0"):
         "molecule_types": molecule_types,
         "system": topology.system_entries(block_types),
     }
+    if merged:
+        result.warnings.append(
+            f"{merged} molecule type(s) hold several molecules because their atoms are "
+            "interleaved in the editor's atom order; reorder the atoms molecule by "
+            "molecule to get one type per molecule."
+        )
     if not all(info.charges_from_force_field for info in result.types):
         result.warnings.append(
             "Some molecules do not use the force field's own charge scheme (see the list)."

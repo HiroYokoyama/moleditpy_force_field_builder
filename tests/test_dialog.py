@@ -225,3 +225,46 @@ def test_settings_round_trip(dialog):
     )
     settings = dialog.read_settings()
     assert settings["water_model"] == "OPC3" and settings["constrain_h"] is False
+
+
+def _interleaved():
+    """Ethanol + water + Na+ with all hydrogens last, as after MoleditPy's 3D conversion."""
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+
+    mol = Chem.AddHs(Chem.MolFromSmiles("CCO.O.[Na+]"))
+    AllChem.EmbedMolecule(mol, randomSeed=1)
+    return mol
+
+
+def test_interleaved_molecules_are_reordered_on_request(dialog, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    dialog.state["mol"] = _interleaved()
+    applied = []
+
+    def set_molecule(mol):
+        applied.append(mol)
+        dialog.state["mol"] = mol
+
+    dialog.set_molecule = set_molecule
+    monkeypatch.setattr(
+        QMessageBox, "question", staticmethod(lambda *a: QMessageBox.StandardButton.Yes)
+    )
+    result = dialog.run_build()
+    assert len(applied) == 1
+    assert [t.name for t in result.types] == ["MOL", "SOL", "NA"]
+    assert result.type_info("SOL").charge_method == "TIP3P water model"
+
+
+def test_interleaved_molecules_kept_when_declined(dialog, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    dialog.state["mol"] = _interleaved()
+    dialog.set_molecule = lambda mol: pytest.fail("must not change the molecule")
+    monkeypatch.setattr(
+        QMessageBox, "question", staticmethod(lambda *a: QMessageBox.StandardButton.No)
+    )
+    result = dialog.run_build()
+    assert len(result.types) == 1
+    assert any("interleaved" in w for w in result.warnings)

@@ -85,6 +85,12 @@ def _open_dialog(mw=None):
                     "%s: mark_project_modified failed", PLUGIN_NAME, exc_info=True
                 )
 
+    def _set_molecule(mol):
+        # Undoable replacement through the host, as other plugins do it.
+        _context.current_molecule = mol
+        _context.push_undo_checkpoint()
+        _mark_modified()
+
     _dialog_opened = True
     dlg = ForceFieldBuilderDialog(
         parent=mw,
@@ -92,6 +98,7 @@ def _open_dialog(mw=None):
         persistent_settings=current_settings,
         get_molecule=_get_molecule,
         mark_modified=_mark_modified,
+        set_molecule=_set_molecule if _context is not None else None,
         restored=_restored,
         version=PLUGIN_VERSION,
     )

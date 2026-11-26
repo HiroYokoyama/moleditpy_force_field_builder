@@ -223,9 +223,34 @@ def test_validate_reports_problems():
 
 
 def test_shipped_examples_are_valid():
-    folder = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "examples")
+    folder = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "examples"
+    )
     names = [n for n in os.listdir(folder) if n.endswith(".mdff.json")]
     assert len(names) >= 3
     for name in names:
         with open(os.path.join(folder, name), encoding="utf-8") as handle:
             assert mdff.validate(json.load(handle)) == [], name
+
+
+def test_molecule_order_and_reorder():
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+
+    mol = Chem.AddHs(Chem.MolFromSmiles("CCO.O.[Na+]"))
+    AllChem.EmbedMolecule(mol, randomSeed=1)
+    mol.SetProp("moleditpy_cell", '{"lattice": [[10,0,0],[0,10,0],[0,0,10]]}')
+    for atom in mol.GetAtoms():
+        atom.SetIntProp("_original_atom_id", 100 + atom.GetIdx())
+    assert topology.fragment_blocks(mol) == [(0, mol.GetNumAtoms())]
+    order = topology.molecule_order(mol)
+    out = topology.reorder_by_molecule(mol)
+    assert [a.GetIntProp("_original_atom_id") for a in out.GetAtoms()] == [
+        100 + i for i in order
+    ]
+    assert out.HasProp("moleditpy_cell")
+    assert topology.fragment_blocks(out) == [(0, 9), (9, 12), (12, 13)]
+    assert topology.molecule_order(out) is None
+    pos_old = mol.GetConformer().GetPositions()
+    pos_new = out.GetConformer().GetPositions()
+    assert (pos_new == pos_old[order]).all()

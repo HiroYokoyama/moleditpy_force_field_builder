@@ -13,10 +13,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "tests"))
 
-from helpers import combine, mol3d, shifted, water_box  # noqa: E402
+from helpers import combine, mol3d, shifted, water_box
 
-from force_field_builder import builder, mdff, writers  # noqa: E402
-from force_field_builder.display import molecule_positions  # noqa: E402
+from force_field_builder import builder, mdff, writers
+from force_field_builder.display import molecule_positions
 
 OPTIONS = {"charge_method": "mmff94"}
 
@@ -29,7 +29,9 @@ def write(path, text):
 def main():
     systems = {
         "water_tip3p": water_box(3),
-        "nacl_in_water": combine(water_box(4), shifted(mol3d("[Na+]"), 14), shifted(mol3d("[Cl-]"), 18)),
+        "nacl_in_water": combine(
+            water_box(4), shifted(mol3d("[Na+]"), 14), shifted(mol3d("[Cl-]"), 18)
+        ),
         "ethanol_in_water": combine(mol3d("CCO"), shifted(water_box(3), 6)),
     }
     for name, mol in systems.items():
@@ -43,7 +45,10 @@ def main():
     for fname, text in writers.gromacs_files(data, "topol").items():
         write(os.path.join(out, fname), text)
     write(os.path.join(out, "ethanol_in_water_ff.xml"), writers.openmm_xml(data))
-    write(os.path.join(out, "ethanol_in_water.data"), writers.lammps_data(data, molecule_positions(mol)))
+    write(
+        os.path.join(out, "ethanol_in_water.data"),
+        writers.lammps_data(data, molecule_positions(mol)),
+    )
 
 
 if __name__ == "__main__":

@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import builder, charges, display, external, water, writers
+from . import builder, charges, display, external, topology, water, writers
 from .mdff import dumps
 
 logger = logging.getLogger(__name__)
@@ -85,6 +85,7 @@ class ForceFieldBuilderDialog(QDialog):
         mark_modified=None,
         restored=None,
         version="0.1.0",
+        set_molecule=None,
     ):
         super().__init__(parent)
         self.setWindowTitle("Force Field Builder")
@@ -94,6 +95,7 @@ class ForceFieldBuilderDialog(QDialog):
             persistent_settings if persistent_settings is not None else {}
         )
         self.get_molecule = get_molecule
+        self.set_molecule = set_molecule
         self.mark_modified = mark_modified
         self.version = version
         self.result = None
@@ -341,6 +343,7 @@ class ForceFieldBuilderDialog(QDialog):
                 self, "Force Field Builder", "There is no molecule in the editor."
             )
             return None
+        mol = self._offer_reorder(mol)
         options = self.read_settings()
         imported = None
         if options["charge_method"] == "imported":
@@ -374,6 +377,40 @@ class ForceFieldBuilderDialog(QDialog):
         self._show_result()
         self._notify()
         return result
+
+    def _offer_reorder(self, mol):
+        """Offer to make each molecule's atoms contiguous (needed for one type per molecule)."""
+        from rdkit import Chem
+
+        n_frags = len(Chem.GetMolFrags(mol, sanitizeFrags=False))
+        if self.set_molecule is None or n_frags < 2:
+            return mol
+        if len(topology.fragment_blocks(mol)) == n_frags:
+            return mol
+        answer = QMessageBox.question(
+            self,
+            "Force Field Builder",
+            f"The {n_frags} molecules in the editor have interleaved atom numbers "
+            "(the 3D conversion puts all hydrogens last), so they cannot be listed "
+            "molecule by molecule for MD.\n\nReorder the atoms molecule by molecule? "
+            "Coordinates do not change and the step can be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return mol
+        reordered = topology.reorder_by_molecule(mol)
+        try:
+            self.set_molecule(reordered)
+        except Exception:  # pragma: no cover - host API guard
+            logger.warning(
+                "Force Field Builder: could not reorder the atoms", exc_info=True
+            )
+            return mol
+        current = self._molecule()
+        if current is not None and current.GetNumAtoms() == reordered.GetNumAtoms():
+            return current
+        return reordered
 
     def _show_result(self):
         result = self.result
