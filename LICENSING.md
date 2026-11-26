@@ -38,3 +38,13 @@ field by the Open Force Field Initiative, copied unmodified from
 International license (CC-BY-4.0), not the LGPL; the full license text is in
 `force_field_builder/data/LICENSE-openff-forcefields.txt`. Keep both files and
 this attribution when redistributing the plugin.
+
+## Bundled Amber ff14SB parameters
+
+`force_field_builder/data/amber_ff14sb.json` is converted from the AmberTools 25 files
+`parm10.dat`, `frcmod.ff14SB`, `amino12.lib`, `aminont12.lib` and `aminoct12.lib`
+(`dat/leap`). AmberTools states that these parameter files have been placed in the public
+domain by their authors; the statement and the citation are in
+`force_field_builder/data/LICENSE-amber-ff14sb.txt`. The JSON file is not covered by the
+LGPL.
+

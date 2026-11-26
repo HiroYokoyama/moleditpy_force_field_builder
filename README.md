@@ -9,7 +9,8 @@ current structure and writes them out for MD: GROMACS `.top`/`.itp`, OpenMM Forc
 LAMMPS data, and the neutral `moleditpy-mdff` JSON read by the MoleditPy MD generator plugins.
 
 The default path needs nothing beyond MoleditPy itself: the bundled **OpenFF Sage 2.3.0**
-force field is applied by a built-in SMIRNOFF engine on RDKit SMARTS matching.
+force field is applied by a built-in SMIRNOFF engine on RDKit SMARTS matching. Proteins get
+the bundled **Amber ff14SB**, residue by residue.
 
 Repo: [https://github.com/HiroYokoyama/moleditpy_force_field_builder](https://github.com/HiroYokoyama/moleditpy_force_field_builder)
 
@@ -47,6 +48,11 @@ Repo: [https://github.com/HiroYokoyama/moleditpy_force_field_builder](https://gi
 - **Equivalent atoms averaged**: imported and xTB charges are averaged over
   symmetry-equivalent atoms (methyl hydrogens, carboxylate or nitro oxygens; resonance forms
   count as one), keeping the total charge. It can be switched off.
+- **Proteins with Amber ff14SB**: a molecule made of standard amino-acid residues is
+  parameterised with ff14SB from its residue templates, including the N- and C-terminal
+  forms, HIE / HID / HIP, ASH, GLH, LYN, CYX / CYM and the ACE / NME caps. Templates are
+  matched on the bond graph, so hydrogen names do not matter and the protonation state is
+  read from the hydrogens that are present. See [Proteins](#proteins).
 - **Water and ions from tables**: TIP3P, SPC/E and OPC3 water; Sage library charges and
   Lennard-Jones parameters for monatomic ions.
 - **Identical molecules parameterised once**: the system is split into molecules, identical
@@ -98,6 +104,30 @@ adding a feature when present:
 4. Save as MDFF JSON, GROMACS, OpenMM XML or LAMMPS data.
 
 ![Torsions tab](https://raw.githubusercontent.com/HiroYokoyama/moleditpy_force_field_builder/main/docs/images/dialog_torsions.png)
+
+## Proteins
+
+A protein, together with its water and ions, is parameterised in one build:
+
+1. Open the PDB file in MoleditPy and prepare it with **MD System Builder > Protein**
+   ([MD System Builder](https://github.com/HiroYokoyama/moleditpy_md_system_builder)). That
+   adds the hydrogens for pH 7, the disulfide bonds and the missing heavy atoms, and sets the
+   formal charges. A PDB file that already has every hydrogen and the S-S bonds (as
+   `CONECT` records) can be used directly.
+2. Solvate it, then press **Assign Parameters** here.
+
+Every block of amino-acid residues becomes one molecule type named `PROTEIN`, with the charges
+of ff14SB itself; the charge method chosen in the dialog applies to the other molecules only.
+The molecule type keeps the PDB atom names, and its `force_field` is
+`Amber ff14SB (proteins)`. Ligands, water and ions in the same system get Sage and the water
+model as usual. A cysteine whose sulfur has neither a hydrogen nor a disulfide bond is an
+error rather than a guess.
+
+ff14SB has no CMAP and no virtual sites, so the result is complete in every output format.
+The parameters were checked against AmberTools 25: on crambin and protein G (2IGD), a GROMACS
+run of our topology and of the tleap + ParmEd one agree within 0.003 kJ/mol for every term,
+and on the test peptide the energy terms match sander to 0.002 kcal/mol
+(`tests/test_amber.py`).
 
 ## Output formats
 
@@ -182,6 +212,9 @@ regenerates them.
   the 25 test molecules in `tests/test_external.py`, and the bonded energies of the OpenMM
   XML match OpenFF Interchange's System to 1e-9 kJ/mol.
 - Virtual sites, polarisable force fields, CMAP and Urey-Bradley terms are not supported.
+  Protein force fields with CMAP (ff19SB, CHARMM36m) are therefore not offered.
+- Proteins: only the standard residues of ff14SB. Modified residues, nucleic acids and
+  metal centres are not parameterised.
 
 ## Development
 
@@ -205,3 +238,9 @@ The bundled force field `force_field_builder/data/openff-2.3.0.offxml` is from t
 distributed under the Creative Commons Attribution 4.0 International license
 (`force_field_builder/data/LICENSE-openff-forcefields.txt`). Please cite the OpenFF Sage
 force field when you publish results obtained with it.
+
+`force_field_builder/data/amber_ff14sb.json` holds the Amber ff14SB parameters and residue
+templates converted from the AmberTools files `parm10.dat`, `frcmod.ff14SB` and the
+`amino12` libraries, which their authors placed in the public domain
+(`force_field_builder/data/LICENSE-amber-ff14sb.txt`). Please cite Maier et al., *J. Chem.
+Theory Comput.* 2015, 11, 3696-3713, when you publish results obtained with it.
