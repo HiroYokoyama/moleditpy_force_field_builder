@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 PLUGIN_NAME = "Force Field Builder"
-PLUGIN_VERSION = "0.1.0"
+PLUGIN_VERSION = "0.1.1"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = (
     "Builds MD force-field parameters (OpenFF Sage via RDKit, optional GAFF) and charges "
@@ -29,7 +29,8 @@ PLUGIN_OPTIONAL_DEPENDENCIES = [
     "acpype",
 ]
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=5.0.0, <6.0.0"
-PLUGIN_LICENSE = "LGPL-3.0-or-later"
+# Plugin code is LGPL; the bundled OpenFF Sage force field (data/) is CC-BY-4.0.
+PLUGIN_LICENSE = "LGPL-3.0-or-later AND CC-BY-4.0"
 
 WINDOW_ID = "force_field_builder_dialog"
 
