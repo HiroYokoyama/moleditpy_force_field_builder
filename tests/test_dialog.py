@@ -284,3 +284,26 @@ def test_import_charges_of_one_molecule(dialog, tmp_path):
     assert result is not None
     assert result.types[0].charge_method.startswith("Imported")
     assert result.types[1].kind == "water"
+
+
+def test_import_asks_which_charge_set(dialog, tmp_path, monkeypatch):
+    from force_field_builder import charges, main_dialog
+
+    n = dialog.state["mol"].GetNumAtoms()
+    sets = [
+        ([0.0] * n, None, "job.log: Gaussian ESP-fitted charges"),
+        ([0.1] + [0.0] * (n - 1), None, "job.log: Gaussian Mulliken charges"),
+    ]
+    monkeypatch.setattr(charges, "charge_sets", lambda _path: sets)
+    asked = []
+
+    def get_item(_parent, _title, _text, labels, current, _editable):
+        asked.append((labels, current))
+        return labels[1], True
+
+    monkeypatch.setattr(main_dialog.QInputDialog, "getItem", get_item)
+    assert dialog.import_charges(str(tmp_path / "job.log"))
+    assert asked == [(["Gaussian ESP-fitted charges", "Gaussian Mulliken charges"], 0)]
+    assert dialog.imported_label == "job.log: Gaussian Mulliken charges"
+    monkeypatch.setattr(main_dialog.QInputDialog, "getItem", lambda *a: ("", False))
+    assert not dialog.import_charges(str(tmp_path / "job.log"))  # cancelled

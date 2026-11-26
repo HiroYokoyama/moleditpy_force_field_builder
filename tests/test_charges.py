@@ -130,3 +130,152 @@ def test_average_equivalent_keeps_total_and_groups_equivalent_atoms():
     assert out[4] == pytest.approx(out[5]) == pytest.approx(out[6])
     assert changed == 5
     assert charges.average_equivalent(mol, out)[1] == 0
+
+
+# Layouts below follow each program's own output (headers cross-checked with cclib's
+# parsers and, for xtb, its property printer). Water: O, H, H.
+GAUSSIAN_LOG = """
+ Entering Gaussian System, Link 0=g16
+ Mulliken charges:
+               1
+     1  O   -0.758364
+     2  H    0.379182
+     3  H    0.379182
+ Sum of Mulliken charges =  -0.00000
+ Mulliken charges with hydrogens summed into heavy atoms:
+               1
+     1  O    0.000000
+ Sum of Mulliken charges with hydrogens summed into heavy atoms =   0.00000
+ Hirshfeld charges, spin densities, dipoles, and CM5 charges using IRadAn=      4:
+                Q-H        S-H        Dx         Dy         Dz        Q-CM5
+     1  O   -0.344015   0.000000   0.000000   0.000000  -0.218331  -0.668180
+     2  H    0.172008   0.000000   0.000000   0.123455   0.081733   0.334090
+     3  H    0.172007   0.000000   0.000000  -0.123455   0.081733   0.334090
+       Tot   0.000000   0.000000   0.000000   0.000000  -0.054865   0.000000
+ Charges from ESP fit, RMS=   0.00133 RRMS=   0.10427:
+ Charge=   0.00000 Dipole=    0.0000    0.0000   -2.4034 Tot=    2.4034
+               1
+     1  O   -0.834020
+     2  H    0.417010
+     3  H    0.417010
+ -----------------------------------------------------------------
+
+ Summary of Natural Population Analysis:
+
+                                       Natural Population
+                Natural  -----------------------------------------------
+    Atom  No    Charge         Core      Valence    Rydberg      Total
+ -----------------------------------------------------------------------
+      O    1   -0.91432      1.99991     6.90537    0.00904     8.91432
+      H    2    0.45716      0.00000     0.54064    0.00220     0.54284
+      H    3    0.45716      0.00000     0.54064    0.00220     0.54284
+ =======================================================================
+   * Total *    0.00000      1.99991     7.98665    0.01344    10.00000
+"""
+
+QCHEM_OUT = """
+          Ground-State Mulliken Net Atomic Charges
+
+     Atom                 Charge (a.u.)
+  ----------------------------------------
+      1 O                    -0.876191
+      2 H                     0.438096
+      3 H                     0.438095
+  ----------------------------------------
+  Sum of atomic charges =     0.000000
+
+          Ground-State ChElPG Net Atomic Charges
+
+     Atom                 Charge (a.u.)
+  ----------------------------------------
+      1 O                    -0.795000
+      2 H                     0.397500
+      3 H                     0.397500
+  ----------------------------------------
+"""
+
+PSI4_OUT = """
+  Mulliken Charges: (a.u.)
+   Center  Symbol    Alpha    Beta     Spin     Total
+       1     O     4.35460  4.35460  0.00000 -0.70920
+       2     H     0.32270  0.32270  0.00000  0.35460
+       3     H     0.32270  0.32270  0.00000  0.35460
+
+   Total alpha =  5.00000, Total beta =  5.00000, Total charge =  0.00000
+"""
+
+XTB_OUT = """
+     #   Z          covCN         q      C6AA      α(0)
+     1   8 O        1.613    -0.565    25.523     8.112
+     2   1 H        0.807     0.283     2.453     2.149
+     3   1 H        0.807     0.282     2.453     2.149
+
+ Mol. C6AA /au·bohr⁶  :         45.142312
+"""
+
+
+def _sets(tmp_path, text, name="job.out"):
+    path = tmp_path / name
+    path.write_text(text, encoding="utf-8")
+    return charges.charge_sets(str(path))
+
+
+def test_gaussian_tables_best_first(tmp_path):
+    sets = _sets(tmp_path, GAUSSIAN_LOG, "water.log")
+    labels = [d.split(": ", 1)[1] for _v, _e, d in sets]
+    assert labels == [
+        "Gaussian ESP-fitted charges",
+        "Gaussian CM5 charges",
+        "Gaussian Hirshfeld charges",
+        "Gaussian NPA charges",
+        "Gaussian Mulliken charges",
+    ]
+    by_label = {d.split(": ", 1)[1]: (v, e) for v, e, d in sets}
+    assert by_label["Gaussian ESP-fitted charges"] == (
+        [-0.83402, 0.41701, 0.41701],
+        ["O", "H", "H"],
+    )
+    assert by_label["Gaussian CM5 charges"][0] == [-0.66818, 0.33409, 0.33409]
+    assert by_label["Gaussian Hirshfeld charges"][0][0] == -0.344015
+    assert by_label["Gaussian NPA charges"] == (
+        [-0.91432, 0.45716, 0.45716],
+        ["O", "H", "H"],
+    )
+    # Not the "summed into heavy atoms" table that follows.
+    assert by_label["Gaussian Mulliken charges"][0] == [-0.758364, 0.379182, 0.379182]
+    assert charges.parse_charge_file(str(tmp_path / "water.log"))[0][0] == -0.83402
+
+
+def test_qchem_psi4_and_xtb_tables(tmp_path):
+    sets = _sets(tmp_path, QCHEM_OUT)
+    assert [d.split(": ", 1)[1] for _v, _e, d in sets] == [
+        "Q-Chem CHELPG charges",
+        "Q-Chem Mulliken charges",
+    ]
+    assert sets[0][0] == [-0.795, 0.3975, 0.3975] and sets[0][1] == ["O", "H", "H"]
+
+    ((values, elements, description),) = _sets(tmp_path, PSI4_OUT)
+    assert values == [-0.7092, 0.3546, 0.3546] and elements == ["O", "H", "H"]
+    assert "Psi4 Mulliken" in description
+
+    ((values, elements, description),) = _sets(tmp_path, XTB_OUT)
+    assert values == [-0.565, 0.283, 0.282] and elements == ["O", "H", "H"]
+    assert "xtb" in description
+
+
+def test_xtb_json_and_orca_open_shell(tmp_path):
+    ((values, _e, description),) = _sets(
+        tmp_path, json.dumps({"partial charges": [-0.565, 0.283, 0.282]}), "xtbout.json"
+    )
+    assert values == [-0.565, 0.283, 0.282] and "partial charges" in description
+    orca = ORCA_OUT.split("CHELPG CHARGES GENERATION")[0].replace(
+        "MULLIKEN ATOMIC CHARGES\n", "MULLIKEN ATOMIC CHARGES AND SPIN POPULATIONS\n"
+    )
+    ((values, _e, _d),) = _sets(tmp_path, orca)
+    assert values == [-0.4, 0.2, 0.2]
+
+
+def test_last_table_of_a_kind_wins(tmp_path):
+    first = PSI4_OUT.replace("-0.70920", "-0.60000")
+    ((values, _e, _d),) = _sets(tmp_path, first + PSI4_OUT)
+    assert values[0] == -0.7092

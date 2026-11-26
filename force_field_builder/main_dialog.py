@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QHeaderView,
+    QInputDialog,
     QLabel,
     QMessageBox,
     QPlainTextEdit,
@@ -638,18 +639,22 @@ class ForceFieldBuilderDialog(QDialog):
                 self,
                 "Import Charges",
                 "",
-                "Charge files (*.out *.log *.json *.chg *.txt *.csv);;All files (*)",
+                "Charge files (*.out *.log *.json *.chg *.txt *.csv *.dat);;All files (*)",
             )
         if not path:
             return False
         mol = self._molecule()
         try:
-            values, elements, description = charges.parse_charge_file(path)
+            sets = charges.charge_sets(path)
         except (OSError, ValueError, charges.ChargeError) as exc:
             QMessageBox.warning(
                 self, "Force Field Builder", f"Could not read charges:\n{exc}"
             )
             return False
+        chosen = self._choose_charge_set(sets)
+        if chosen is None:
+            return False
+        values, elements, description = chosen
         scope = "system"
         if mol is not None:
             if len(values) == mol.GetNumAtoms() and elements:
@@ -686,6 +691,23 @@ class ForceFieldBuilderDialog(QDialog):
         )
         self._set_combo(self.charge_combo, "imported")
         return True
+
+    def _choose_charge_set(self, sets):
+        """The charge set to use; asks when the file holds several (best one first)."""
+        if len(sets) == 1:
+            return sets[0]
+        labels = [description.split(": ", 1)[-1] for _v, _e, description in sets]
+        label, ok = QInputDialog.getItem(
+            self,
+            "Import Charges",
+            "The file has several charge sets (ESP-fitted charges suit MD best):",
+            labels,
+            0,
+            False,
+        )
+        if not ok:
+            return None
+        return sets[labels.index(label)]
 
     # -- 3D display -------------------------------------------------------------------
 

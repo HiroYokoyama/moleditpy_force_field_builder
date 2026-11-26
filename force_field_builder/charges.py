@@ -308,77 +308,187 @@ def xtb_charges(mol, timeout=600):
 
 # -- imported charges ------------------------------------------------------------
 
-# ORCA tables, in order of preference for MD (ESP-fitted first).
-_ORCA_TABLES = (
-    ("RESP", re.compile(r"^\s*RESP CHARGES\s*$", re.IGNORECASE)),
-    ("CHELPG", re.compile(r"^\s*CHELPG CHARGES\s*$", re.IGNORECASE)),
-    ("Hirshfeld", re.compile(r"^\s*HIRSHFELD ANALYSIS\s*$", re.IGNORECASE)),
-    ("Mulliken", re.compile(r"^\s*MULLIKEN ATOMIC CHARGES\s*$", re.IGNORECASE)),
+_NUMBERS = r"((?:[-+]?\d+\.\d+(?:[eE][-+]?\d+)?\s*)+)"
+# "idx El [:] numbers": ORCA, Gaussian, Q-Chem and Psi4 tables.
+_ROW_INDEX_ELEMENT = re.compile(r"^\s*\d+\s+([A-Za-z]{1,3})\s*:?\s+" + _NUMBERS + "$")
+# "idx Z El covCN q C6AA alpha": the xtb property table.
+_ROW_XTB = re.compile(r"^\s*\d+\s+\d+\s+([A-Za-z]{1,3})\s+" + _NUMBERS + "$")
+# "El idx charge core valence ...": the NBO natural population summary.
+_ROW_NPA = re.compile(r"^\s*([A-Za-z]{1,3})\s+\d+\s+" + _NUMBERS + "$")
+
+FIRST, LAST, SECOND = 0, -1, 1  # which number on a row is the charge
+
+
+def _section(program, scheme, header, row=_ROW_INDEX_ELEMENT, pick=FIRST):
+    return {
+        "program": program,
+        "scheme": scheme,
+        "header": re.compile(header, re.IGNORECASE),
+        "row": row,
+        "pick": pick,
+    }
+
+
+# Every table the importer knows, in order of preference for MD: ESP-fitted charges
+# first, then the density-partitioning schemes, then orbital-based populations.
+# Headers are taken from the programs' output (and cross-checked with cclib).
+CHARGE_SECTIONS = (
+    _section("ORCA", "RESP", r"^\s*RESP CHARGES\s*$"),
+    _section("Q-Chem", "RESP", r"^\s*Merz-Kollman RESP Net Atomic Charges\s*$"),
+    _section("ORCA", "CHELPG", r"^\s*CHELPG CHARGES\s*$"),
+    _section("Q-Chem", "CHELPG", r"^\s*Ground-State ChElPG Net Atomic Charges\s*$"),
+    _section(
+        "Q-Chem", "Merz-Kollman ESP", r"^\s*Merz-Kollman ESP Net Atomic Charges\s*$"
+    ),
+    # Pop=CHelpG / MK / HLY: "Charges from ESP fit, RMS= ..." then "ESP charges:".
+    _section(
+        "Gaussian",
+        "ESP-fitted",
+        r"^\s*(?:ESP charges\b.*:|Charges from ESP fit\b.*)\s*$",
+    ),
+    _section(
+        "Psi4", "MBIS", r"^\s*MBIS Charges(?:: \(a\.u\.\)| \[a\.u\.\]:)", pick=LAST
+    ),
+    _section(
+        "Gaussian",
+        "CM5",
+        r"^\s*Hirshfeld charges, spin densities, dipoles, and CM5 charges",
+        pick=LAST,
+    ),
+    _section("Q-Chem", "CM5", r"^\s*Charge Model 5\b"),
+    _section("ORCA", "Hirshfeld", r"^\s*HIRSHFELD ANALYSIS\s*$"),
+    _section(
+        "Gaussian",
+        "Hirshfeld",
+        r"^\s*Hirshfeld charges, spin densities, dipoles, and CM5 charges",
+    ),
+    _section("Q-Chem", "Hirshfeld", r"^\s*Hirshfeld Atomic Charges\s*$"),
+    _section(
+        "Gaussian",
+        "NPA",
+        r"^\s*Summary of Natural Population Analysis:\s*$",
+        row=_ROW_NPA,
+    ),
+    _section("xtb", "GFN", r"^\s*#\s+Z\s+covCN\s+q\b", row=_ROW_XTB, pick=SECOND),
+    _section(
+        "ORCA",
+        "Loewdin",
+        r"^\s*LOEWDIN ATOMIC CHARGES(?: AND SPIN (?:POPULATIONS|DENSITIES))?\s*$",
+    ),
+    _section(
+        "Psi4", "Lowdin", r"^\s*Lowdin Charges(?:: \(a\.u\.\)| \[a\.u\.\]:)", pick=LAST
+    ),
+    _section(
+        "Gaussian",
+        "Lowdin",
+        r"^\s*Lowdin (?:atomic )?charges(?: and spin densities)?:\s*$",
+    ),
+    _section("Gaussian", "APT", r"^\s*APT (?:atomic )?charges:\s*$"),
+    _section(
+        "ORCA",
+        "Mulliken",
+        r"^\s*MULLIKEN ATOMIC CHARGES(?: AND SPIN (?:POPULATIONS|DENSITIES))?\s*$",
+    ),
+    _section("Q-Chem", "Mulliken", r"^\s*Ground-State Mulliken Net Atomic Charges\s*$"),
+    _section(
+        "Psi4",
+        "Mulliken",
+        r"^\s*Mulliken Charges(?:: \(a\.u\.\)| \[a\.u\.\]:)",
+        pick=LAST,
+    ),
+    _section(
+        "Gaussian",
+        "Mulliken",
+        r"^\s*Mulliken (?:atomic )?charges(?: and spin densities)?:\s*$",
+    ),
 )
-_ORCA_ROW = re.compile(r"^\s*(\d+)\s*([A-Za-z]{1,3})\s*:?\s*([-+]?\d+\.\d+)")
+
+# Lines allowed between a header and the first row (column titles, rules, notes).
+_MAX_PREAMBLE = 12
 
 
-def _parse_orca(text):
-    """{scheme: [(element, charge), ...]} from the last table of each kind."""
-    lines = text.splitlines()
-    found = {}
-    for scheme, header in _ORCA_TABLES:
-        start = None
-        for n, line in enumerate(lines):
-            if header.match(line):
-                start = n
-        if start is None:
-            continue
-        rows = []
-        for line in lines[start + 1 :]:
-            m = _ORCA_ROW.match(line)
-            if m:
-                rows.append((m.group(2), float(m.group(3))))
-            elif rows and (
-                not line.strip()
-                or line.strip().startswith("-")
-                or "Sum" in line
-                or "Total" in line
-            ):
+def _element(symbol):
+    return symbol[:1].upper() + symbol[1:].lower()
+
+
+def _read_section(lines, start, section):
+    """[(element, charge), ...] from the rows following the header at *start*."""
+    rows = []
+    for offset, line in enumerate(lines[start + 1 :]):
+        m = section["row"].match(line)
+        if m:
+            numbers = [float(x) for x in m.group(2).split()]
+            try:
+                rows.append((_element(m.group(1)), numbers[section["pick"]]))
+            except IndexError:
                 break
-        if rows:
-            found[scheme] = rows
+        elif rows or offset >= _MAX_PREAMBLE:
+            break  # the table ended (blank line, rule, "Sum ..." or "Total ...")
+    return rows
+
+
+def find_charge_sets(text):
+    """Every charge table in a QM output, best first: [(program, scheme, rows), ...].
+
+    The last table of each kind is used (an optimisation prints one per step).
+    """
+    lines = text.splitlines()
+    found = []
+    for section in CHARGE_SECTIONS:
+        starts = [n for n, line in enumerate(lines) if section["header"].match(line)]
+        for start in reversed(starts):
+            rows = _read_section(lines, start, section)
+            if rows:
+                found.append((section["program"], section["scheme"], rows))
+                break
     return found
 
 
 def parse_charge_file(path):
-    """Read charges from a file. Returns (charges, elements_or_None, description)."""
+    """Read charges from a file. Returns (charges, elements_or_None, description).
+
+    For a QM output with several charge tables, the preferred one (see
+    CHARGE_SECTIONS); charge_sets() lists them all.
+    """
+    return charge_sets(path)[0]
+
+
+def charge_sets(path):
+    """Every charge set in a file, best first: [(charges, elements, description), ...]."""
     with open(path, encoding="utf-8", errors="replace") as handle:
         text = handle.read()
     name = os.path.basename(path)
 
     if name.lower().endswith(".json"):
         data = json.loads(text)
-        for key in (
-            "resp_charges",
-            "esp_charges",
-            "chelpg_charges",
-            "charges",
-            "mulliken_charges",
-        ):
-            if isinstance(data.get(key), list):
-                return (
-                    [float(q) for q in data[key]],
-                    data.get("atom_symbols"),
-                    f"{name}: {key}",
-                )
-        raise ChargeError(f"{name} has no charge list")
+        if not isinstance(data, dict):
+            raise ChargeError(f"{name} has no charge list")
+        sets = [
+            ([float(q) for q in data[key]], data.get("atom_symbols"), f"{name}: {key}")
+            for key in (
+                "resp_charges",
+                "esp_charges",
+                "chelpg_charges",
+                "charges",
+                "partial charges",  # xtb --json (xtbout.json)
+                "mulliken_charges",
+            )
+            if isinstance(data.get(key), list)
+        ]
+        if not sets:
+            raise ChargeError(f"{name} has no charge list")
+        return sets
 
-    orca = _parse_orca(text)
-    if orca:
-        for scheme, _ in _ORCA_TABLES:
-            if scheme in orca:
-                rows = orca[scheme]
-                return (
-                    [q for _, q in rows],
-                    [e for e, _ in rows],
-                    f"{name}: ORCA {scheme} charges",
-                )
+    tables = find_charge_sets(text)
+    if tables:
+        return [
+            (
+                [q for _, q in rows],
+                [e for e, _ in rows],
+                f"{name}: {program} {scheme} charges",
+            )
+            for program, scheme, rows in tables
+        ]
 
     # Plain text: one charge per line, or "[index] [element] [x y z] charge" rows
     # (the last number on each line is the charge, as in Multiwfn .chg files).
@@ -397,7 +507,7 @@ def parse_charge_file(path):
         raise ChargeError(f"No charges found in {name}")
     if not all(elements):
         elements = None
-    return charges, elements, f"{name}: plain charge list"
+    return [(charges, elements, f"{name}: plain charge list")]
 
 
 def compute(method, mol, imported=None):
