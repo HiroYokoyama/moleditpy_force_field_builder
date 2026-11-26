@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 PLUGIN_NAME = "Force Field Builder"
-PLUGIN_VERSION = "0.2.0"
+PLUGIN_VERSION = "0.2.1"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = (
     "Builds MD force-field parameters (OpenFF Sage via RDKit, optional GAFF) and charges "
@@ -20,7 +20,7 @@ PLUGIN_DESCRIPTION = (
     "GROMACS, OpenMM XML and LAMMPS data files."
 )
 PLUGIN_CATEGORY = "Utility"
-PLUGIN_TAGS = ["MD", "Force Field"]
+PLUGIN_TAGS = ["MD"]
 PLUGIN_DEPENDENCIES = []
 PLUGIN_OPTIONAL_DEPENDENCIES = [
     "openff-toolkit",
