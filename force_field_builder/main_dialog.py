@@ -101,6 +101,7 @@ class ForceFieldBuilderDialog(QDialog):
         self.result = None
         self.fingerprint = None
         self.imported_charges = None
+        self.imported_elements = None
         self.imported_label = ""
         self._filling = False
         self._updating = False
@@ -136,6 +137,15 @@ class ForceFieldBuilderDialog(QDialog):
         self.import_label = QLabel("")
         self.import_label.setWordWrap(True)
         form.addRow("", self.import_label)
+        self.average_check = QCheckBox(
+            "Average imported and xTB charges over symmetry-equivalent atoms"
+        )
+        self.average_check.setToolTip(
+            "ESP fits such as CHELPG give slightly different charges to equivalent atoms "
+            "(the hydrogens of a methyl group, the oxygens of a carboxylate). "
+            "Averaging keeps the total charge."
+        )
+        form.addRow("", self.average_check)
 
         self.water_combo = QComboBox()
         for key, model in water.WATER_MODELS.items():
@@ -242,7 +252,7 @@ class ForceFieldBuilderDialog(QDialog):
         close_button.clicked.connect(self.close)
         for combo in (self.ff_combo, self.charge_combo, self.water_combo):
             combo.currentIndexChanged.connect(self._settings_changed)
-        for check in (self.constrain_check, self.cross_check):
+        for check in (self.constrain_check, self.cross_check, self.average_check):
             check.toggled.connect(self._settings_changed)
 
         self.apply_settings(self.persistent_settings)
@@ -314,6 +324,9 @@ class ForceFieldBuilderDialog(QDialog):
             self.cross_check.setChecked(
                 bool(settings.get("cross_check", True)) and self.cross_check.isEnabled()
             )
+            self.average_check.setChecked(
+                bool(settings.get("average_equivalent", True))
+            )
             self._set_combo(self.display_combo, settings.get("display", "none"))
         finally:
             self._updating = False
@@ -325,6 +338,7 @@ class ForceFieldBuilderDialog(QDialog):
             "water_model": self.water_combo.currentData(),
             "constrain_h": self.constrain_check.isChecked(),
             "cross_check": self.cross_check.isChecked(),
+            "average_equivalent": self.average_check.isChecked(),
             "display": self.display_combo.currentData(),
         }
 
@@ -356,7 +370,11 @@ class ForceFieldBuilderDialog(QDialog):
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             result = builder.build(
-                mol, options, imported_charges=imported, version=self.version
+                mol,
+                options,
+                imported_charges=imported,
+                version=self.version,
+                imported_elements=self.imported_elements,
             )
         except builder.BuildError as exc:
             QApplication.restoreOverrideCursor()
@@ -632,27 +650,39 @@ class ForceFieldBuilderDialog(QDialog):
                 self, "Force Field Builder", f"Could not read charges:\n{exc}"
             )
             return False
-        if mol is not None and len(values) != mol.GetNumAtoms():
-            QMessageBox.warning(
-                self,
-                "Force Field Builder",
-                f"{description} has {len(values)} charges but the molecule has {mol.GetNumAtoms()} atoms.",
-            )
-            return False
-        if mol is not None and elements:
-            mine = [a.GetSymbol().upper() for a in mol.GetAtoms()]
-            theirs = [str(e).upper() for e in elements]
-            if mine != theirs:
+        scope = "system"
+        if mol is not None:
+            if len(values) == mol.GetNumAtoms() and elements:
+                mine = [a.GetSymbol().upper() for a in mol.GetAtoms()]
+                if mine != [str(e).upper() for e in elements]:
+                    QMessageBox.warning(
+                        self,
+                        "Force Field Builder",
+                        "The element order in the charge file differs from the molecule.",
+                    )
+                    return False
+            scope, copies = builder.imported_matches(mol, values, elements)
+            if scope is None:
                 QMessageBox.warning(
                     self,
                     "Force Field Builder",
-                    "The element order in the charge file differs from the molecule.",
+                    f"{description} has {len(values)} charges. The system has "
+                    f"{mol.GetNumAtoms()} atoms and no molecule in it has {len(values)} "
+                    "atoms in the same element order. If the hydrogens are listed after "
+                    "all heavy atoms, press Assign Parameters once to reorder the atoms, "
+                    "then import again.",
                 )
                 return False
         self.imported_charges = values
+        self.imported_elements = elements
         self.imported_label = description
+        if scope == "molecule":
+            where = f"one molecule, applied to {copies} matching cop{'y' if copies == 1 else 'ies'}; other molecules use Auto"
+        else:
+            where = "whole system"
         self.import_label.setText(
-            f"Imported: {description} ({len(values)} atoms, total {sum(values):+.4f})"
+            f"Imported: {description} ({len(values)} atoms, {where}, "
+            f"total {sum(values):+.4f})"
         )
         self._set_combo(self.charge_combo, "imported")
         return True

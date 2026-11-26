@@ -47,6 +47,7 @@ def get_default_settings():
         "water_model": "TIP3P",
         "constrain_h": True,
         "cross_check": True,
+        "average_equivalent": True,
         "display": "none",
         "lammps_padding": 10.0,
     }

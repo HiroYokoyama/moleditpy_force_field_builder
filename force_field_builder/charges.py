@@ -51,6 +51,39 @@ def normalise(charges, target):
     return charges, residual
 
 
+def average_equivalent(mol, values):
+    """Average charges over symmetry-equivalent atoms.
+
+    Atoms are equivalent when RDKit gives them the same canonical rank without tie
+    breaking (for example the three hydrogens of a methyl group or the two oxygens
+    of a carboxylate). Returns (charges, number of atoms whose charge changed).
+    The total charge is unchanged.
+    """
+    from rdkit import Chem
+
+    work = Chem.Mol(mol)
+    work.UpdatePropertyCache(strict=False)
+    Chem.FastFindRings(work)
+    ranks = list(Chem.CanonicalRankAtoms(work, breakTies=False))
+    groups = {}
+    for index, rank in enumerate(ranks):
+        groups.setdefault(rank, []).append(index)
+    out = [float(q) for q in values]
+    changed = 0
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        mean = sum(out[i] for i in members) / len(members)
+        changed += sum(1 for i in members if abs(out[i] - mean) > 1e-6)
+        for i in members:
+            out[i] = mean
+    return out, changed
+
+
+#: Methods whose charges can differ between equivalent atoms.
+AVERAGED_METHODS = ("imported", "xtb")
+
+
 # -- availability ---------------------------------------------------------------
 
 

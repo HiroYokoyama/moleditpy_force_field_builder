@@ -38,6 +38,7 @@ def default_options():
         "water_model": "TIP3P",
         "constrain_h": True,
         "cross_check": True,
+        "average_equivalent": True,
     }
 
 
@@ -91,7 +92,7 @@ def _unique_name(base, used):
     return f"{base}{n}"
 
 
-def _charges_for(block_mol, method, ff_scheme_available, imported):
+def _charges_for(block_mol, method, ff_scheme_available, imported, average=False):
     """(charges, label, from_force_field, warnings) for a non-library molecule."""
     warnings = []
     if method == "auto":
@@ -118,12 +119,18 @@ def _charges_for(block_mol, method, ff_scheme_available, imported):
             return values, charge_mod.METHOD_LABELS[key], from_ff, warnings
         raise BuildError("No charge method worked for this molecule")
     values = charge_mod.compute(method, block_mol, imported=imported)
+    label = charge_mod.METHOD_LABELS[method]
     from_ff = ff_scheme_available and method in ("nagl", "am1bcc")
     if not from_ff:
-        warnings.append(
-            f"Charges are {charge_mod.METHOD_LABELS[method]}, not the force field's own scheme."
-        )
-    return values, charge_mod.METHOD_LABELS[method], from_ff, warnings
+        warnings.append(f"Charges are {label}, not the force field's own scheme.")
+    if average and method in charge_mod.AVERAGED_METHODS:
+        values, changed = charge_mod.average_equivalent(block_mol, values)
+        label += ", equivalent atoms averaged"
+        if changed:
+            warnings.append(
+                f"Charges of {changed} symmetry-equivalent atoms were averaged."
+            )
+    return values, label, from_ff, warnings
 
 
 def _register_atom_type(registry, name, atom):
@@ -156,7 +163,11 @@ def _sage_type(block_mol, name, atom_names, options, imported, info):
         info.charges_from_force_field = True
     else:
         values, label, from_ff, warns = _charges_for(
-            block_mol, options["charge_method"], True, imported
+            block_mol,
+            options["charge_method"],
+            True,
+            imported,
+            options.get("average_equivalent", True),
         )
         info.charge_method = label
         info.charges_from_force_field = from_ff
@@ -217,7 +228,11 @@ def _external_type(block_mol, name, atom_names, options, imported, info):
         user = None
         if method != "auto":
             values, label, _from_ff, warns = _charges_for(
-                block_mol, method, False, imported
+                block_mol,
+                method,
+                False,
+                imported,
+                options.get("average_equivalent", True),
             )
             user = values
             info.charge_method = label
@@ -236,7 +251,11 @@ def _external_type(block_mol, name, atom_names, options, imported, info):
         info.charges_from_force_field = True
         if method != "auto":
             values, label, _from_ff, warns = _charges_for(
-                block_mol, method, False, imported
+                block_mol,
+                method,
+                False,
+                imported,
+                options.get("average_equivalent", True),
             )
             for atom, q in zip(mtype["atoms"], values):
                 atom["charge"] = float(q)
@@ -268,6 +287,43 @@ def _ion_or_molecule_type(block_mol, name, atom_names, options, imported, info):
     return _external_type(block_mol, name, atom_names, options, imported, info)
 
 
+def _imported_fits(block_mol, charges, elements):
+    if block_mol is None or block_mol.GetNumAtoms() != len(charges):
+        return False
+    if not elements:
+        return True
+    mine = [a.GetSymbol().upper() for a in block_mol.GetAtoms()]
+    return mine == [str(e).upper() for e in elements]
+
+
+def imported_matches(mol, charges, elements=None):
+    """How imported charges apply to *mol*.
+
+    ("system", n_atoms) when there is one charge per atom; ("molecule", n_copies)
+    when they fit single molecules (same atom count and element order, water
+    excluded); (None, 0) otherwise.
+    """
+    from rdkit import Chem
+
+    if mol is None or not charges:
+        return None, 0
+    if len(charges) == mol.GetNumAtoms():
+        return "system", mol.GetNumAtoms()
+    copies = 0
+    for start, end in topology.fragment_blocks(mol):
+        if end - start != len(charges):
+            continue
+        if (
+            topology.classify_block(topology.block_signature(mol, start, end))
+            == "water"
+        ):
+            continue
+        block = topology.extract_block(Chem.Mol(mol), start, end)
+        if _imported_fits(block, charges, elements):
+            copies += 1
+    return ("molecule", copies) if copies else (None, 0)
+
+
 def _h_constraints(mtype):
     hydrogens = {n for n, a in enumerate(mtype["atoms"]) if a["element"] == "H"}
     return [
@@ -277,18 +333,27 @@ def _h_constraints(mtype):
     ]
 
 
-def build(mol, options=None, imported_charges=None, version="0.1.0"):
-    """Parameterise the host molecule. Raises BuildError for unusable input."""
+def build(
+    mol, options=None, imported_charges=None, version="0.1.0", imported_elements=None
+):
+    """Parameterise the host molecule. Raises BuildError for unusable input.
+
+    Imported charges cover either every atom of the system or one molecule. One
+    molecule's charges go to every molecule with the same atom count and element
+    order; the other molecules use the automatic charge method.
+    """
     from rdkit import Chem
 
     opts = default_options()
     opts.update(options or {})
     if mol is None or mol.GetNumAtoms() == 0:
         raise BuildError("There is no molecule to parameterise.")
-    if opts["charge_method"] == "imported" and (
-        imported_charges is None or len(imported_charges) != mol.GetNumAtoms()
-    ):
-        raise BuildError("Import a charge file with one charge per atom first.")
+    per_molecule = False
+    if opts["charge_method"] == "imported":
+        if not imported_charges:
+            raise BuildError("Import a charge file first.")
+        per_molecule = len(imported_charges) != mol.GetNumAtoms()
+    matched = 0
     if opts["water_model"] not in water.WATER_MODELS:
         raise BuildError(f"Unknown water model {opts['water_model']!r}")
 
@@ -373,15 +438,25 @@ def build(mol, options=None, imported_charges=None, version="0.1.0"):
                 name = _unique_name(base_name, used_names)
                 info = TypeInfo(name, kind)
                 info.smiles = smiles
-                imported_slice = (
-                    imported_charges[start:end]
-                    if imported_charges is not None
-                    else None
-                )
+                block_opts = opts
+                imported_slice = None
+                if opts["charge_method"] == "imported":
+                    if not per_molecule:
+                        imported_slice = imported_charges[start:end]
+                    elif _imported_fits(block_mol, imported_charges, imported_elements):
+                        imported_slice = list(imported_charges)
+                        matched += 1
+                    else:
+                        block_opts = dict(opts, charge_method="auto")
+                        if kind != "ion":
+                            info.warnings.append(
+                                "The imported charges are for another molecule; "
+                                "this one uses the automatic charge method."
+                            )
                 atom_names = topology.atom_names(host, start, end)
                 try:
                     mtype = _ion_or_molecule_type(
-                        block_mol, name, atom_names, opts, imported_slice, info
+                        block_mol, name, atom_names, block_opts, imported_slice, info
                     )
                 except (
                     smirnoff.SmirnoffError,
@@ -419,6 +494,13 @@ def build(mol, options=None, imported_charges=None, version="0.1.0"):
         by_signature[sig] = name
         result.types.append(info)
         block_types.append((name, start, end))
+
+    if per_molecule and not matched:
+        raise BuildError(
+            f"The {len(imported_charges)} imported charges fit neither the whole system "
+            f"({host.GetNumAtoms()} atoms) nor any molecule in it (same atom count and "
+            "element order)."
+        )
 
     # Per-atom display data and counts.
     result.atom_types = [""] * host.GetNumAtoms()
