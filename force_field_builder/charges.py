@@ -13,12 +13,15 @@ shifted so that the total equals the molecule's net formal charge.
 from __future__ import annotations
 
 import json
+import logging
 import math
 import os
 import re
 import shutil
 import subprocess
 import tempfile
+
+logger = logging.getLogger(__name__)
 
 METHOD_LABELS = {
     "auto": "Force field's own scheme (fallback: MMFF94)",
@@ -264,6 +267,81 @@ def am1bcc(mol, timeout=600):
     return charges
 
 
+# -- RESP from a Gaussian ESP job (AmberTools) ----------------------------------------
+
+# antechamber -c resp runs these three in turn.
+RESP_PROGRAMS = ("antechamber", "espgen", "respgen", "resp")
+_GAUSSIAN_CHARGE = re.compile(
+    r"^\s*Charge\s*=\s*(-?\d+)\s+Multiplicity\s*=", re.MULTILINE
+)
+
+
+def has_resp():
+    return all(has_executable(name) for name in RESP_PROGRAMS)
+
+
+def has_esp_points(text):
+    """True for a Gaussian output that lists the fitted ESP points (Pop=MK IOp(6/33=2))."""
+    return "Entering Gaussian System" in text and "ESP Fit Center" in text
+
+
+def gaussian_net_charge(text):
+    found = _GAUSSIAN_CHARGE.findall(text)
+    if not found:
+        raise ChargeError("The Gaussian output gives no charge and multiplicity")
+    return int(found[0])
+
+
+def resp_from_gaussian(path, text=None, timeout=600):
+    """Two-stage RESP charges fitted by AmberTools to the ESP points in a Gaussian output."""
+    if not has_resp():
+        raise ChargeError("AmberTools antechamber/espgen/respgen/resp are not on PATH")
+    if text is None:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            text = handle.read()
+    if not has_esp_points(text):
+        raise ChargeError(
+            "No ESP points in this Gaussian output: run it with Pop=MK IOp(6/33=2)"
+        )
+    with tempfile.TemporaryDirectory(prefix="ffb_resp_") as tmp:
+        # A plain name in the work folder: antechamber splits paths on spaces.
+        with open(os.path.join(tmp, "esp.log"), "w", encoding="utf-8") as handle:
+            handle.write(text)
+        cmd = [
+            shutil.which("antechamber"),
+            "-i",
+            "esp.log",
+            "-fi",
+            "gout",
+            "-o",
+            "resp.mol2",
+            "-fo",
+            "mol2",
+            "-c",
+            "resp",
+            "-nc",
+            str(gaussian_net_charge(text)),
+            "-at",
+            "gaff2",
+            "-dr",
+            "no",
+            "-pf",
+            "y",
+        ]
+        proc = subprocess.run(
+            cmd, cwd=tmp, capture_output=True, text=True, timeout=timeout, check=False
+        )
+        out = os.path.join(tmp, "resp.mol2")
+        if proc.returncode != 0 or not os.path.exists(out):
+            raise ChargeError(
+                f"antechamber RESP failed:\n{proc.stdout[-2000:]}\n{proc.stderr[-2000:]}"
+            )
+        charges = read_mol2_charges(out)
+    if not charges:
+        raise ChargeError("antechamber wrote no RESP charges")
+    return charges
+
+
 def xtb_charges(mol, timeout=600):
     """GFN2-xTB charges (the ``charges`` file xtb writes after a single point)."""
     exe = shutil.which("xtb")
@@ -480,8 +558,9 @@ def charge_sets(path):
         return sets
 
     tables = find_charge_sets(text)
+    resp = _resp_set(path, name, text, tables)
     if tables:
-        return [
+        return resp + [
             (
                 [q for _, q in rows],
                 [e for e, _ in rows],
@@ -508,6 +587,23 @@ def charge_sets(path):
     if not all(elements):
         elements = None
     return [(charges, elements, f"{name}: plain charge list")]
+
+
+def _resp_set(path, name, text, tables):
+    """[RESP charge set] for a Gaussian ESP job when AmberTools is installed, else []."""
+    if not (has_esp_points(text) and has_resp()):
+        return []
+    try:
+        values = resp_from_gaussian(path, text)
+    except (ChargeError, OSError, subprocess.SubprocessError) as exc:
+        logger.warning("Force Field Builder: RESP fit skipped: %s", exc)
+        return []
+    # Same atoms, same order as the ESP-fitted table antechamber read.
+    elements = next(
+        ([e for e, _ in rows] for _p, _s, rows in tables if len(rows) == len(values)),
+        None,
+    )
+    return [(values, elements, f"{name}: RESP charges (AmberTools)")]
 
 
 def compute(method, mol, imported=None):

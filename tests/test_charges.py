@@ -279,3 +279,72 @@ def test_last_table_of_a_kind_wins(tmp_path):
     first = PSI4_OUT.replace("-0.70920", "-0.60000")
     ((values, _e, _d),) = _sets(tmp_path, first + PSI4_OUT)
     assert values[0] == -0.7092
+
+
+GAUSSIAN_ESP_LOG = (
+    " Entering Gaussian System, Link 0=g16\n"
+    " Charge =  0 Multiplicity = 1\n"
+    "      Atomic Center    1 is at   0.000000  0.000000  0.117300\n"
+    "      ESP Fit Center    4 is at   0.000000  0.000000  1.900000\n"
+    + GAUSSIAN_LOG.split("Entering Gaussian System, Link 0=g16\n", 1)[1]
+)
+
+
+def _fake_antechamber(monkeypatch, written):
+    import subprocess
+
+    monkeypatch.setattr(charges.shutil, "which", lambda name: f"/amber/{name}")
+
+    def run(cmd, cwd, **_kw):
+        with open(os.path.join(cwd, "esp.log"), encoding="utf-8") as log:
+            written.append((cmd, log.read()))
+        with open(os.path.join(cwd, "resp.mol2"), "w") as out:
+            out.write(
+                "@<TRIPOS>MOLECULE\nWAT\n@<TRIPOS>ATOM\n"
+                "1 O 0 0 0 oh 1 WAT -0.780000\n"
+                "2 H1 0 0 0 ho 1 WAT 0.390000\n"
+                "3 H2 0 0 0 ho 1 WAT 0.390000\n"
+                "@<TRIPOS>BOND\n"
+            )
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(charges.subprocess, "run", run)
+
+
+def test_resp_from_gaussian_esp_job(tmp_path, monkeypatch):
+    written = []
+    _fake_antechamber(monkeypatch, written)
+    sets = _sets(tmp_path, GAUSSIAN_ESP_LOG, "water esp.log")
+    values, elements, description = sets[0]
+    assert values == [-0.78, 0.39, 0.39] and elements == ["O", "H", "H"]
+    assert description == "water esp.log: RESP charges (AmberTools)"
+    assert sets[1][2].endswith("Gaussian ESP-fitted charges")
+    cmd, text = written[0]
+    assert cmd[cmd.index("-fi") + 1] == "gout" and cmd[cmd.index("-c") + 1] == "resp"
+    assert cmd[cmd.index("-nc") + 1] == "0" and "ESP Fit Center" in text
+
+
+def test_no_resp_without_esp_points_or_amber(tmp_path, monkeypatch):
+    written = []
+    _fake_antechamber(monkeypatch, written)
+    sets = _sets(tmp_path, GAUSSIAN_LOG)  # no ESP points printed
+    assert "RESP" not in sets[0][2] and not written
+    monkeypatch.setattr(charges.shutil, "which", lambda name: None)
+    sets = _sets(tmp_path, GAUSSIAN_ESP_LOG)
+    assert "RESP" not in sets[0][2]
+    with pytest.raises(charges.ChargeError, match="not on PATH"):
+        charges.resp_from_gaussian(str(tmp_path / "job.out"))
+
+
+def test_failed_resp_fit_keeps_the_other_sets(tmp_path, monkeypatch):
+    import subprocess
+
+    monkeypatch.setattr(charges.shutil, "which", lambda name: f"/amber/{name}")
+    monkeypatch.setattr(
+        charges.subprocess,
+        "run",
+        lambda cmd, **_kw: subprocess.CompletedProcess(cmd, 1, "boom", ""),
+    )
+    sets = _sets(tmp_path, GAUSSIAN_ESP_LOG)
+    assert sets[0][2].endswith("Gaussian ESP-fitted charges")
+    assert charges.gaussian_net_charge(" Charge = -1 Multiplicity = 2\n") == -1
