@@ -125,12 +125,24 @@ def residue_name(mol, start):
 
 
 def atom_names(mol, start, end):
-    """Unique atom names: PDB names when present and unique, else element+count."""
+    """PDB names when every atom has one, unique within its residue; else element+count."""
     names = []
+    keys = []
     for i in range(start, end):
         info = mol.GetAtomWithIdx(i).GetPDBResidueInfo()
-        names.append((info.GetName() or "").strip() if info is not None else "")
-    if all(names) and len(set(names)) == len(names):
+        name = (info.GetName() or "").strip() if info is not None else ""
+        names.append(name)
+        if info is not None:
+            keys.append(
+                (
+                    info.GetChainId(),
+                    info.GetResidueNumber(),
+                    info.GetInsertionCode(),
+                    info.GetResidueName(),
+                    name,
+                )
+            )
+    if all(names) and len(set(keys)) == len(keys):
         return names
     counts = {}
     out = []

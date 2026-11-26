@@ -60,6 +60,7 @@ def test_residues_are_matched_by_graph():
     mtype, templates = amber.molecule_type(mol, "PROTEIN", _names(mol))
     assert templates == ["NALA", "CYX", "ASP", "GLU", "HIE", "LYS", "ARG", "CCYX"]
     assert sum(a["charge"] for a in mtype["atoms"]) == pytest.approx(0.0, abs=1e-6)
+    assert [a["name"] for a in mtype["atoms"][:5]] == ["N", "H1", "H2", "H3", "CA"]
     assert mtype["force_field"] == amber.FORCE_FIELD_LABEL
     ss = [
         b
@@ -124,6 +125,9 @@ def test_energy_matches_sander():
     assert [t.kind for t in result.types] == ["protein"]
     assert not mdff.validate(result.mdff)
     assert "ff14SB" in result.mdff["source"]
+    # PDB atom names repeat across residues and are kept
+    names = [a["name"] for a in result.mdff["molecule_types"][0]["atoms"]]
+    assert names.count("CA") == 8 and names[:2] == ["N", "H1"]
     xyz = mol.GetConformer().GetPositions() / 10.0
     ours = {k: v / KCAL for k, v in energy(result.mdff, xyz).items()}
     for term in ("bond", "angle", "torsion", "lj"):
