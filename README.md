@@ -80,7 +80,7 @@ Repo: [https://github.com/HiroYokoyama/moleditpy_force_field_builder](https://gi
 
 Install it from MoleditPy's Plugin Installer, or download the release ZIP and extract the
 `force_field_builder` folder into `~/.moleditpy/plugins/` (`%USERPROFILE%\.moleditpy\plugins\`
-on Windows). Restart MoleditPy; the plugin appears under **Tools > Force Field Builder...**.
+on Windows). Restart MoleditPy; the plugin appears under **MD > Force Field Builder...**.
 
 Required: MoleditPy 5.x (which brings RDKit, numpy, PySide6 and PyVista). Optional, each
 adding a feature when present:
@@ -98,7 +98,7 @@ adding a feature when present:
 ## Usage
 
 1. Build or open the system in MoleditPy and convert it to 3D (hydrogens must be explicit).
-2. Open **Tools > Force Field Builder...**, choose the force field, charge method and
+2. Open **MD > Force Field Builder...**, choose the force field, charge method and
    water model, and press **Assign Parameters**.
 3. Check the molecule types, the per-atom table and the Warnings tab; edit values if needed.
 4. Save as MDFF JSON, GROMACS, OpenMM XML or LAMMPS data.

@@ -52,7 +52,7 @@ def ctx():
 def test_metadata():
     assert plugin.PLUGIN_NAME == "Force Field Builder"
     assert re.fullmatch(r"\d+\.\d+\.\d+", plugin.PLUGIN_VERSION)
-    assert plugin.PLUGIN_VERSION == "0.2.1"
+    assert plugin.PLUGIN_VERSION == "0.2.2"
     assert plugin.PLUGIN_AUTHOR == "HiroYokoyama"
     assert plugin.PLUGIN_LICENSE == "LGPL-3.0-or-later AND CC-BY-4.0"
     assert plugin.PLUGIN_SUPPORTED_MOLEDITPY_VERSION == ">=5.0.0, <6.0.0"
@@ -64,7 +64,7 @@ def test_metadata():
 
 
 def test_registers_one_menu_action_and_handlers(ctx):
-    assert [p for p, _ in ctx.menu_actions] == ["Tools/Force Field Builder..."]
+    assert [p for p, _ in ctx.menu_actions] == ["MD/Force Field Builder..."]
     assert (
         len(ctx.save_handlers) == len(ctx.load_handlers) == len(ctx.reset_handlers) == 1
     )
